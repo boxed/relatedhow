@@ -4,7 +4,6 @@ import requests
 
 select = """
 SELECT ?taxonname ?parenttaxonname WHERE {
-  ?item wdt:P31 wd:Q16521.
   ?item wdt:P225 ?taxonname.
   ?item wdt:P171 ?parenttaxon.
   ?parenttaxon wdt:P225 ?parenttaxonname.

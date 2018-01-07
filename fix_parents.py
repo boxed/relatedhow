@@ -25,8 +25,7 @@ def set_parents(queryset):
             try:
                 t.parent = taxons[parents[0]]
             except KeyError:
-                t.parent = Taxon.objects.create(name=parents[0])
-                taxons[parents[0]] = t.parent
+                print('WARNING: references unknown name', parents[0])
             t.save()
             # print(t, parents)
         except Taxon.DoesNotExist:
@@ -38,6 +37,8 @@ def main():
     django.setup()
 
     from relatedhow.viewer.models import Taxon
+    Taxon.objects.get_or_create(name='Biota')
+    Taxon.objects.get_or_create(name='Ichnofossils')
 
     taxons = Taxon.objects.filter(parent=None).exclude(name='Biota')
     set_parents(taxons.exclude(name__contains=' '))  # take the more important taxons first
