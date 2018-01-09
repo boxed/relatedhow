@@ -6,11 +6,11 @@ import django
 def set_parents(queryset):
     from relatedhow.viewer.models import Taxon
     count = 0
-    taxons = {t.name: t for t in Taxon.objects.all()}
+    taxons = {t.wikidata_id: t for t in Taxon.objects.all()}
     for t in queryset:
         try:
             if count % 1000 == 0:
-                print(count, flush=True)
+                print(count)
             count += 1
 
             parents = t.parents_string.split('\t')
@@ -36,9 +36,8 @@ def main():
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "relatedhow.settings")
     django.setup()
 
-    from relatedhow.viewer.models import Taxon
-    Taxon.objects.get_or_create(name='Biota')
-    Taxon.objects.get_or_create(name='Ichnofossils')
+    from relatedhow.viewer.models import Taxon, setup
+    setup()
 
     taxons = Taxon.objects.filter(parent=None).exclude(name='Biota')
     set_parents(taxons.exclude(name__contains=' '))  # take the more important taxons first

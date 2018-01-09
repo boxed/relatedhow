@@ -8,17 +8,22 @@ if __name__ == '__main__':
 
     from relatedhow.viewer.models import Taxon
 
-    for t in Taxon.objects.filter(parent__isnull=False, rank__isnull=False).exclude(name='Biota').filter(parents_string__contains='\t'):
+    qs = Taxon.objects.filter(parent__isnull=False, rank__isnull=False).exclude(name='Biota')
+    if qs.count() == 0:
+        print('You need to run set_rank.py first')
+        exit(1)
+
+    for t in qs.filter(parents_string__contains='\t'):
         try:
             try:
-                parents = [Taxon.objects.get(name=name) for name in t.parents_string.split('\t')]
+                parents = [Taxon.objects.get(wikidata_id=wikidata_id) for wikidata_id in t.parents_string.split('\t')]
             except Taxon.DoesNotExist:
                 continue
 
             if any([p.rank is None for p in parents]):
                 continue
 
-            parents = sorted(parents, key=lambda x: x.rank)
+            parents = sorted(parents, key=lambda x: x.rank, reverse=True)
             if parents[0].rank == parents[1].rank:
                 print('warning:', t, 'has multiple same rank parents!', parents)
             if t.parent != parents[0]:

@@ -3,7 +3,7 @@ from urllib.parse import urlencode
 import requests
 
 select = """
-SELECT ?taxonname ?parenttaxonname WHERE {
+SELECT ?item ?parenttaxon ?taxonname ?parenttaxonname WHERE {
   ?item wdt:P225 ?taxonname.
   ?item wdt:P171 ?parenttaxon.
   ?parenttaxon wdt:P225 ?parenttaxonname.

@@ -6,7 +6,8 @@ if __name__ == '__main__':
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "relatedhow.settings")
     django.setup()
 
-    from relatedhow.viewer.models import Taxon
+    from relatedhow.viewer.models import Taxon, setup
+    setup()
     import csv
     count = 0
     to_insert = {}
@@ -19,8 +20,10 @@ if __name__ == '__main__':
             count += 1
 
             name = row['?taxonname']
-            if name not in to_insert:
-                to_insert[name] = Taxon(name=name)
-            to_insert[name].add_parent(row['?parenttaxonname'])
+            wikidata_id = row['?item']
+            if wikidata_id not in to_insert:
+                to_insert[wikidata_id] = Taxon(name=name, wikidata_id=wikidata_id)
+            to_insert[wikidata_id].add_parent(row['?parenttaxon'])
 
+    print('...inserting %s clades' % len(to_insert))
     Taxon.objects.bulk_create(to_insert.values())
