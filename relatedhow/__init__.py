@@ -1,6 +1,10 @@
 import csv
 
 
+def fix_text(s):
+    return s.encode('ascii', errors='ignore').decode('ascii')
+
+
 def import_wikidata():
     from relatedhow.viewer.models import Taxon, setup
     setup()
@@ -14,7 +18,7 @@ def import_wikidata():
                 print(count)
             count += 1
 
-            name = row['?taxonname']
+            name = fix_text(row['?taxonname'])
             wikidata_id = row['?item']
             if wikidata_id not in to_insert:
                 to_insert[wikidata_id] = Taxon(name=name, wikidata_id=wikidata_id)
@@ -35,7 +39,7 @@ def import_wikidata_names():
             if count % 10000 == 0:
                 print(count)
 
-            name = row['?label']
+            name = fix_text(row['?label'])
             wikidata_id = row['?item']
             if name.endswith('@en'):
                 if name.startswith('"'):

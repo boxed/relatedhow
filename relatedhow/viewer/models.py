@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+from functools import total_ordering
+
 from django.db import models
 from django.db.models import Q
 
 
+@total_ordering
 class Taxon(models.Model):
     wikidata_id = models.CharField(max_length=255, db_index=True, unique=True)
 
-    name = models.CharField(max_length=1024, db_index=True)
-    english_name = models.CharField(max_length=1024, db_index=True, null=True)
+    name = models.CharField(max_length=255, db_index=True)
+    english_name = models.CharField(max_length=255, db_index=True, null=True)
     parent = models.ForeignKey('self', null=True, on_delete=models.PROTECT, related_name='children')
     parents_string = models.TextField()
     rank = models.IntegerField(null=True)
@@ -39,6 +42,9 @@ class Taxon(models.Model):
 
     def __str__(self):
         return self.name
+
+    def __lt__(self, other):
+        return self.name < other.name
 
 
 def find_matching_taxons(s):
