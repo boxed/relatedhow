@@ -1,6 +1,6 @@
 # Related how?
 
-Once you've set this app up and imported and processed the data you can use the command line to get a little tree for two species:
+Once you've set this app up and imported and processed the data you can use the command line to get a tree for a bunch of species:
 
 ```
 > python related_how_graph.py "Homo sapiens" "Pan troglodytes" "Gorilla gorilla" "Canis lupus" "Capra aegagrus hircus" "Equus ferus caballus" "Bos taurus" "Felis silvestris catus" "Tachyglossidae"
