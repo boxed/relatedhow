@@ -34,6 +34,6 @@ if __name__ == '__main__':
         for a, b in zip(tree[:-1], tree[1:]):
             edges.add((str(a), str(b)))
 
-    g = Digraph('tree', filename='tree.gv')
+    g = Digraph('tree', filename='tree.gv', format='svg')
     g.edges(edges)
     g.view()
