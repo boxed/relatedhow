@@ -52,7 +52,7 @@ def find_matching_taxons(s):
     if not result:
         result = list(Taxon.objects.filter(english_name__iexact=s))
     if not result:
-        result = Taxon.objects.filter(Q(name__icontains=s) | Q(english_name__icontains=s))
+        result = list(Taxon.objects.filter(Q(name__icontains=s) | Q(english_name__icontains=s)))
 
     return result
 

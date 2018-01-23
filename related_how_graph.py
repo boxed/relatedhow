@@ -1,7 +1,7 @@
 import os
 import sys
-from itertools import zip_longest, groupby
 import django
+from graphviz import Digraph
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
@@ -26,14 +26,14 @@ if __name__ == '__main__':
                 print(x)
             exit(1)
 
-    parent_lists = sorted([list(reversed(x[0].get_all_parents())) for x in taxons])
+    taxons = [x[0] for x in taxons]
 
-    # Now on to the actual work
-    for l in zip_longest(*parent_lists):
-        result = ''
-        for k, group in groupby(l):
-            padding = ' ' * ((len(list(group)) - 1) * 10)
-            result += padding + '{:^20}'.format(k.name if k else '') + padding
+    edges = set()
+    for t in taxons:
+        tree = list(reversed(t.get_all_parents()))
+        for a, b in zip(tree[:-1], tree[1:]):
+            edges.add((str(a), str(b)))
 
-        # assert len(result) == parent_lists[0] * 20
-        print(result)
+    g = Digraph('tree', filename='tree.gv')
+    g.edges(edges)
+    g.view()
