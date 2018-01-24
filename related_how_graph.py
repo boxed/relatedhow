@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     edges = set()
     for t in taxons:
-        tree = list(reversed(t.get_all_parents()))
+        tree = list(reversed(t.get_all_parents())) + [t]
         for a, b in zip(tree[:-1], tree[1:]):
             edges.add((str(a), str(b)))
 
