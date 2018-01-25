@@ -16,6 +16,8 @@ class Taxon(models.Model):
     parent = models.ForeignKey('self', null=True, on_delete=models.PROTECT, related_name='children')
     parents_string = models.TextField()
     rank = models.IntegerField(null=True)
+    number_of_direct_children = models.IntegerField(null=True)
+    number_of_direct_and_indirect_children = models.IntegerField(null=True)
 
     def add_parent(self, p):
         parents = {x for x in self.parents_string.split('\t') if x}
