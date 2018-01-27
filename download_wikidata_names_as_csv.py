@@ -3,9 +3,9 @@ from urllib.parse import urlencode
 import requests
 
 select = """
-SELECT DISTINCT ?label ?item WHERE {
+SELECT DISTINCT ?item ?label WHERE {
   ?item wdt:P225 ?taxonname.
-  ?item rdfs:label ?label. FILTER (langMatches( lang(?label), "EN" ) ) 
+  ?item wdt:P1843 ?label. FILTER (langMatches( lang(?label), "EN" ) )
 }
 """
 
