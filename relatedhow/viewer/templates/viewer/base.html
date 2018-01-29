@@ -1,0 +1,14 @@
+<html>
+    <head>
+        <title>{{ title }}</title>
+    </head>
+
+    <body>
+        <form action="/" method="post"> {% csrf_token %}
+            <input name="q" type="text" value="{{ q }}" title="Search" placeholder="Comma separated list of species names, or just one species name">
+            <input type="submit">
+        </form>
+
+        {% block contents %}{% endblock %}
+    </body>
+</html>

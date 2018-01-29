@@ -15,7 +15,11 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib import admin
+from relatedhow.viewer import views
 
 urlpatterns = [
+    url(r'^$', views.index),
+    url(r'^tree/(?P<names>.*)/', views.tree),
+    url(r'^clade/(?P<name>.*)/', views.clade),
     url(r'^admin/', admin.site.urls),
 ]

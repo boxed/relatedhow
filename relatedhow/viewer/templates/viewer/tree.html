@@ -1,0 +1,15 @@
+{% extends "viewer/base.html" %}
+
+{% block contents %}
+    {% if errors %}
+        Couldn't understand some of the names you gave me:
+        <ul>
+            {% for name, taxons in errors %}
+                <li>{{ name }}: found {{ taxons }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {{ tree }}
+
+{% endblock %}

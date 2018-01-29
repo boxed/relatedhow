@@ -1,0 +1,22 @@
+{% extends "viewer/base.html" %}
+
+{% block contents %}
+
+    {% if errors %}
+        {{ errors }}
+    {% endif %}
+
+    {% for t in taxon.get_all_parents %}
+        <a href="/clade/{{ t.name }}/">{{ t.name }}</a><br>
+    {% endfor %}
+    <h1>{{ taxon }}</h1>
+
+    Children:
+
+    <p></p>
+
+    {% for t in taxon.children.all %}
+        <a href="/clade/{{ t.name }}/">{{ t.name }}</a><br>
+    {% endfor %}
+
+{% endblock %}
