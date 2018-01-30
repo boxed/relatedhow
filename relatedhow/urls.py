@@ -19,7 +19,7 @@ from relatedhow.viewer import views
 
 urlpatterns = [
     url(r'^$', views.index),
-    url(r'^tree/(?P<names>.*)/', views.tree),
-    url(r'^clade/(?P<name>.*)/', views.clade),
+    url(r'^tree/(?P<pks>.*)/', views.tree),
+    url(r'^clade/(?P<pk>\d+)/', views.clade),
     url(r'^admin/', admin.site.urls),
 ]

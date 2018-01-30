@@ -6,8 +6,8 @@
         {{ errors }}
     {% endif %}
 
-    {% for t in taxon.get_all_parents %}
-        <a href="/clade/{{ t.name }}/">{{ t.name }}</a><br>
+    {% for t in taxon.get_all_parents reversed %}
+        <a href="{{ t.get_absolute_url }}">{{ t.name }}</a><br>
     {% endfor %}
     <h1>{{ taxon }}</h1>
 
@@ -16,7 +16,7 @@
     <p></p>
 
     {% for t in taxon.children.all %}
-        <a href="/clade/{{ t.name }}/">{{ t.name }}</a><br>
+        <a href="{{ t.get_absolute_url }}">{{ t.name }}</a><br>
     {% endfor %}
 
 {% endblock %}
