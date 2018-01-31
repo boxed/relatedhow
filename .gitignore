@@ -3,3 +3,7 @@
 *.pyc
 __pycache__
 venv/
+result.csv
+names.csv
+tree.gv
+tree.gv.svg
