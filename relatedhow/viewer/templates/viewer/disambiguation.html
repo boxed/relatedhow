@@ -2,4 +2,32 @@
 
 {% block contents %}
 
+    I couldn't understand some of things you searched for. Choose from the lists below or ignore them all by searching again above.
+
+    <form method="post"> {% csrf_token %}
+        <input type="hidden" name="q" value="{{ q }}">
+        <ul>
+            {% for name, taxons in errors %}
+                <li>
+                    {{ name }}
+                    <table>
+                        <tr>
+                            <th>Latin</th>
+                            <th>English</th>
+                        </tr>
+                        {% for t in taxons %}
+                            <tr>
+                                <td><input type="radio" name="disambiguate_{{ name }}" value="{{ t }}"></td>
+                                <td><a href="{{ t.get_absolute_url }}">{{ t.name }}</a></td>
+                                <td>{{ t.english_name }}</td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                </li>
+            {% endfor %}
+        </ul>
+
+        <input type="submit" value="Choose">
+    </form>
+
 {% endblock %}

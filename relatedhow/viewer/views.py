@@ -17,21 +17,27 @@ def extract_parts(q):
 def index(request):
     if request.method == 'POST':
         names = extract_parts(request.POST['q'])
+        disambiguate_prefix = 'disambiguate_'
+        disambiguation = [v for k, v in request.POST.items() if k.startswith(disambiguate_prefix)]
+        names += disambiguation
         ts = [find_matching_taxons(name) for name in names]
 
         errors = [
-            (name, taxons)
+            (name, sorted(taxons, key=lambda x: (x.name, x.english_name)))
             for name, taxons in zip(names, ts)
             if len(taxons) != 1
         ]
+        taxons = [x[0] for x in ts if len(x) == 1]
 
         if errors:
             return render(
                 request=request,
                 template_name='viewer/disambiguation.html',
+                context=dict(
+                    q=','.join(str(taxon) for taxon in taxons),
+                    errors=errors,
+                ),
             )
-
-        taxons = [x[0] for x in ts]
 
         if len(names) > 1:
             return redirect(to='/tree/%s/' % ','.join(str(taxon.pk) for taxon in taxons))

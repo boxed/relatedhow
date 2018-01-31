@@ -60,7 +60,14 @@ def find_matching_taxons(s):
     result = list(Taxon.objects.filter(name__iexact=s))
     if not result:
         result = list(Taxon.objects.filter(english_name__iexact=s))
+
     if not result:
-        result = list(Taxon.objects.filter(Q(name__istartswith=s) | Q(english_name__istartswith=s)))
+        result = list(Taxon.objects.filter(english_name__iexact=f'domesticated {s}'))
+
+    if not result:
+        result = list(Taxon.objects.filter(english_name__iexact=f'wild {s}'))
+
+    if not result:
+        result = list(Taxon.objects.filter(Q(english_name__istartswith=s) | Q(english_name__iendswith=s)))
 
     return result

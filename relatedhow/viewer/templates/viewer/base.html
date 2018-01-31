@@ -1,12 +1,26 @@
 <html>
     <head>
         <title>{{ title }}</title>
+
+        <style>
+            body, input {
+                font-size: 18px;
+            }
+            #q {
+                width: 100%;
+            }
+            
+            th {
+                font-weight: normal;
+                color: gray;
+                text-align: left;
+            }
+        </style>
     </head>
 
     <body>
         <form action="/" method="post"> {% csrf_token %}
-            <input name="q" type="text" value="{{ q }}" title="Search" placeholder="Comma separated list of species names, or just one species name">
-            <input type="submit">
+            <input id="q" name="q" type="text" value="{{ q }}" title="Search" placeholder="Comma separated list of species names, or just one species name">
         </form>
 
         {% block contents %}{% endblock %}
