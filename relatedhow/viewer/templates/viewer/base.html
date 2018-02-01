@@ -1,6 +1,6 @@
 <html>
     <head>
-        <title>{{ title }}</title>
+        <title>Related how?</title>
 
         <style>
             body, input {
@@ -19,6 +19,9 @@
     </head>
 
     <body>
+        <h1><a href="/">Related how?</a></h1>
+
+
         <form action="/" method="post"> {% csrf_token %}
             <input id="q" name="q" type="text" value="{{ q }}" title="Search" placeholder="Comma separated list of species names, or just one species name">
         </form>

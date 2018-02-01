@@ -65,6 +65,9 @@ def find_matching_taxons(s):
         result = list(Taxon.objects.filter(english_name__iexact=f'domesticated {s}'))
 
     if not result:
+        result = list(Taxon.objects.filter(english_name__iexact=f'domestic {s}'))
+
+    if not result:
         result = list(Taxon.objects.filter(english_name__iexact=f'wild {s}'))
 
     if not result:

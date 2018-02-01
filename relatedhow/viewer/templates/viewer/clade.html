@@ -10,13 +10,31 @@
         <a href="{{ t.get_absolute_url }}">{{ t.name }}</a><br>
     {% endfor %}
     <h1>{{ taxon }}</h1>
+    {% if taxon.english_name %}
+        <h2>English name: {{ taxon.english_name }}</h2>
+    {% endif %}
 
-    Children:
+    {% if taxon.children.all %}
+        <p></p>
 
-    <p></p>
+        Children:
 
-    {% for t in taxon.children.all %}
-        <a href="{{ t.get_absolute_url }}">{{ t.name }}</a><br>
-    {% endfor %}
+        <p></p>
 
+        <style>
+            a {
+                white-space: nowrap;
+            }
+        </style>
+
+        <p style="column-width: 300px;">
+            {% for t in taxon.children.all %}
+                <a href="{{ t.get_absolute_url }}">{{ t.name }}</a><br>
+                {% if t.english_name %}
+                    {{ t.english_name }}<br>
+                {% endif %}
+                <br>
+            {% endfor %}
+        </p>
+    {% endif %}
 {% endblock %}
