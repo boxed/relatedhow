@@ -1,5 +1,8 @@
 import csv
 from itertools import groupby
+from urllib.parse import urlencode
+import requests
+from tqdm import tqdm
 
 
 def wikidata_id_as_int(s):
@@ -16,17 +19,27 @@ def fix_text(s):
 
 def import_wikidata():
     from relatedhow.viewer.models import Taxon
-    count = 0
-    taxon_by_pk = {
-        2382443: Taxon(id=2382443, name='Biota', english_name='Life'),
-        23012932: Taxon(id=23012932, name='Ichnofossils'),
-        24150684: Taxon(id=24150684, name='Agmata'),
-        5381701: Taxon(id=5381701, name='Eohostimella'),
-        23832652: Taxon(id=23832652, name='Anucleobionta'),
-        21078601: Taxon(id=21078601, name='Yelovichnus'),
-        35107213: Taxon(id=35107213, name='Rhizopodea'),
-        46987746: Taxon(id=46987746, name='Pan-Angiospermae'),
-    }
+
+    print('Clearing database')
+    from django.db import connection
+    cursor = connection.cursor()
+    cursor.execute('TRUNCATE TABLE `viewer_taxon`')
+
+    initial_taxons = [
+        Taxon(id=2382443, name='Biota', english_name='Life'),
+        Taxon(id=23012932, name='Ichnofossils'),
+        Taxon(id=24150684, name='Agmata'),
+        Taxon(id=5381701, name='Eohostimella'),
+        Taxon(id=23832652, name='Anucleobionta'),
+        Taxon(id=21078601, name='Yelovichnus'),
+        Taxon(id=35107213, name='Rhizopodea'),
+        Taxon(id=46987746, name='Pan-Angiospermae'),
+        Taxon(id=14868864, name='Enoplotrupes'),
+        Taxon(id=17290456, name='Erythrophyllum'),
+        Taxon(id=14868878, name='Chelotrupes'),
+    ]
+
+    taxon_by_pk = {x.id: x for x in initial_taxons}
     pks_of_taxons_with_ambigious_parents = set()
 
     print('load names.csv')
@@ -35,11 +48,7 @@ def import_wikidata():
     print('load result.csv')
     with open('result.csv', newline='') as csvfile:
         reader = csv.DictReader(csvfile, delimiter='\t')
-        for row in reader:
-            if count % 10000 == 0:
-                print(count)
-            count += 1
-
+        for row in tqdm(reader):
             name = fix_text(row['?taxonname'])
             pk = wikidata_id_as_int(row['?item'])
             if pk not in taxon_by_pk:
@@ -51,17 +60,22 @@ def import_wikidata():
     for taxon in taxon_by_pk.values():
         taxon._children = set()
 
+    dangling_references = set()
+
     for taxon in taxon_by_pk.values():
         if taxon.parents_string:
             parent_pk = int(taxon.parents_string.partition('\t')[0])
             if parent_pk not in taxon_by_pk:
-                print('warning: %s not in taxon_by_pk' % parent_pk)
+                dangling_references.add(parent_pk)
                 continue
             parent_taxon = taxon_by_pk[parent_pk]
             taxon.parent = parent_taxon
             parent_taxon._children.add(taxon)
             if '\t' in taxon_by_pk[pk].parents_string:
                 pks_of_taxons_with_ambigious_parents.add(pk)
+
+    for pk in dangling_references:
+        print('warning: %s not in taxon_by_pk but was referenced' % pk)
 
     print('set rank')
 
@@ -70,7 +84,6 @@ def import_wikidata():
         for child in taxon._children:
             set_rank(child, rank + 1)
 
-    biota = taxon_by_pk[2382443]
     for taxon in taxon_by_pk.values():
         if taxon.rank is None and taxon.parent is None:
             set_rank(taxon, rank=0)
@@ -79,7 +92,7 @@ def import_wikidata():
 
     def fix_ambiguous_parents():
         count = 0
-        for pk in pks_of_taxons_with_ambigious_parents:
+        for pk in tqdm(pks_of_taxons_with_ambigious_parents):
             taxon = taxon_by_pk[pk]
             parents = {taxon_by_pk[int(parent_pk)] for parent_pk in taxon.split('\t')}
             max_rank = max([x.rank for x in parents])
@@ -96,11 +109,13 @@ def import_wikidata():
         continue
 
     print('set number of children, direct and indirect')
+
     def get_count(t):
         t.number_of_direct_children = len(t._children)
         t.number_of_direct_and_indirect_children = sum(get_count(c) for c in t._children) + t.number_of_direct_children
         return t.number_of_direct_and_indirect_children
 
+    biota = taxon_by_pk[2382443]
     get_count(biota)
 
     print('validating pks')
@@ -116,14 +131,10 @@ def import_wikidata():
 
 
 def load_wikidata_names():
-    count = 0
     name_by_pk = {}
     with open('names.csv', newline='') as csvfile:
         reader = csv.DictReader(csvfile, delimiter='\t')
-        for row in reader:
-            if count % 10000 == 0:
-                print(count)
-
+        for row in tqdm(reader):
             name = fix_text(row['?label'])
             pk = wikidata_id_as_int(row['?item'])
             if name.endswith('@en'):
@@ -134,70 +145,47 @@ def load_wikidata_names():
                     assert name.endswith('@en')
                     name = name[:-len('@en')]
                 name_by_pk[pk] = name
-                count += 1
     return name_by_pk
 
 
-# def fix_ambiguous_parents():
-#     from relatedhow.viewer.models import Taxon
-#     qs = Taxon.objects.filter(parent__isnull=False, rank__isnull=False).exclude(name='Biota')
-#     if qs.count() == 0:
-#         print('You need to run set_rank.py first')
-#         exit(1)
-#
-#     for t in qs.filter(parents_string__contains='\t'):
-#         try:
-#             try:
-#                 parents = [Taxon.objects.get(wikidata_id=wikidata_id) for wikidata_id in t.parents_string.split('\t')]
-#             except Taxon.DoesNotExist:
-#                 continue
-#
-#             if any([p.rank is None for p in parents]):
-#                 continue
-#
-#             parents = sorted(parents, key=lambda x: x.rank, reverse=True)
-#             if parents[0].rank == parents[1].rank:
-#                 print('warning:', t, 'has multiple same rank parents!', parents)
-#             if t.parent != parents[0]:
-#                 t.parent = parents[0]
-#                 old_rank = t.rank
-#                 t.rank = t.parent.rank + 1
-#                 t.save()
-#                 print('\t', t, old_rank, '->', t.rank)
-#                 t.update_rank_of_children()
-#         except Taxon.DoesNotExist:
-#             pass
-#
-#
-# def _set_parents(queryset):
-#     from relatedhow.viewer.models import Taxon
-#     count = 0
-#     taxons = {t.wikidata_id: t for t in Taxon.objects.all()}
-#     for t in queryset:
-#         try:
-#             if count % 1000 == 0:
-#                 print(count)
-#             count += 1
-#
-#             parents = t.parents_string.split('\t')
-#
-#             if not t.parents_string:
-#                 print('WARNING: orphan taxon', t)
-#                 continue
-#
-#             if parents[0] == '':
-#                 print('ERROR', t)
-#             assert parents[0] != ''
-#             try:
-#                 t.parent = taxons[parents[0]]
-#             except KeyError:
-#                 print('WARNING: references unknown name', parents[0])
-#             t.save()
-#             # print(t, parents)
-#         except Taxon.DoesNotExist:
-#             pass
+def download_taxons():
+    select = """
+    SELECT ?item ?parenttaxon ?taxonname ?parenttaxonname WHERE {
+      ?item wdt:P225 ?taxonname.
+      ?item wdt:P171 ?parenttaxon.
+      ?parenttaxon wdt:P225 ?parenttaxonname.
+    }
+    """
+
+    result = requests.get('https://query.wikidata.org/sparql?%s' % urlencode([('query', select)]), headers={'Accept': 'text/tab-separated-values'}).text
+    if '\tat ' in result:
+        print('Error with download')
+        exit(1)
+
+    with open('result.csv', 'w') as f:
+        f.write(result)
+
+
+def download_names():
+    select = """
+    SELECT DISTINCT ?item ?label WHERE {
+      ?item wdt:P225 ?taxonname.
+      ?item wdt:P1843 ?label. FILTER (langMatches( lang(?label), "EN" ) )
+    }
+    """
+
+    result = requests.get('https://query.wikidata.org/sparql?%s' % urlencode([('query', select)]), headers={'Accept': 'text/tab-separated-values'}).text
+
+    if '\tat ' in result:
+        print('Error with download')
+        exit(1)
+    with open('names.csv', 'w') as f:
+        f.write(result)
 
 
 def import_and_process():
-    print('import_wikidata')
+    print('Downloading taxons')
+    download_taxons()
+    print('Downloading names')
+    download_names()
     import_wikidata()
