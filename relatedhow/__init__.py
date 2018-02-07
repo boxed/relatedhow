@@ -2,14 +2,15 @@ import csv
 from itertools import groupby
 from urllib.parse import urlencode
 import requests
+from os.path import exists
 from tqdm import tqdm
 
 
 def wikidata_id_as_int(s):
     prefix = '<http://www.wikidata.org/entity/Q'
     suffix = '>'
-    assert s.startswith(prefix)
-    assert s.endswith(suffix)
+    assert s.startswith(prefix), s
+    assert s.endswith(suffix), s
     return int(s[len(prefix):-len(suffix)])
 
 
@@ -49,6 +50,9 @@ def import_wikidata():
     with open('result.csv', newline='') as csvfile:
         reader = csv.DictReader(csvfile, delimiter='\t')
         for row in tqdm(reader):
+            if '_:' in row['?taxonname'] or '_:' in row['?item'] or '_:' in row['?parenttaxon']:
+                print('invalid row for', row['?item'])
+                continue
             name = fix_text(row['?taxonname'])
             pk = wikidata_id_as_int(row['?item'])
             if pk not in taxon_by_pk:
@@ -62,7 +66,7 @@ def import_wikidata():
 
     dangling_references = set()
 
-    for taxon in taxon_by_pk.values():
+    for taxon in tqdm(taxon_by_pk.values()):
         if taxon.parents_string:
             parent_pk = int(taxon.parents_string.partition('\t')[0])
             if parent_pk not in taxon_by_pk:
@@ -71,7 +75,7 @@ def import_wikidata():
             parent_taxon = taxon_by_pk[parent_pk]
             taxon.parent = parent_taxon
             parent_taxon._children.add(taxon)
-            if '\t' in taxon_by_pk[pk].parents_string:
+            if '\t' in taxon.parents_string:
                 pks_of_taxons_with_ambigious_parents.add(pk)
 
     for pk in dangling_references:
@@ -84,17 +88,17 @@ def import_wikidata():
         for child in taxon._children:
             set_rank(child, rank + 1)
 
-    for taxon in taxon_by_pk.values():
+    for taxon in tqdm(taxon_by_pk.values()):
         if taxon.rank is None and taxon.parent is None:
             set_rank(taxon, rank=0)
 
-    print('fix ambiguous parents, until stable')
+    print('fix ambiguous parents, until stable (%s)' % len(pks_of_taxons_with_ambigious_parents))
 
     def fix_ambiguous_parents():
         count = 0
         for pk in tqdm(pks_of_taxons_with_ambigious_parents):
             taxon = taxon_by_pk[pk]
-            parents = {taxon_by_pk[int(parent_pk)] for parent_pk in taxon.split('\t')}
+            parents = {taxon_by_pk[int(parent_pk)] for parent_pk in taxon.parents_string.split('\t')}
             max_rank = max([x.rank for x in parents])
             relevant_parents = [p for p in parents if p.rank == max_rank]
             if len(relevant_parents) > 1:
@@ -149,17 +153,20 @@ def load_wikidata_names():
 
 
 def download_taxons():
+    if exists('result.csv'):
+        print('\tusing existing file')
+        return
+
     select = """
-    SELECT ?item ?parenttaxon ?taxonname ?parenttaxonname WHERE {
+    SELECT ?item ?parenttaxon ?taxonname WHERE {
       ?item wdt:P225 ?taxonname.
       ?item wdt:P171 ?parenttaxon.
-      ?parenttaxon wdt:P225 ?parenttaxonname.
     }
     """
 
     result = requests.get('https://query.wikidata.org/sparql?%s' % urlencode([('query', select)]), headers={'Accept': 'text/tab-separated-values'}).text
     if '\tat ' in result:
-        print('Error with download')
+        print('Error with download, got %sMB' % (len(result) / (1024 * 10424)))
         exit(1)
 
     with open('result.csv', 'w') as f:
@@ -167,6 +174,10 @@ def download_taxons():
 
 
 def download_names():
+    if exists('names.csv'):
+        print('\tusing existing file')
+        return
+
     select = """
     SELECT DISTINCT ?item ?label WHERE {
       ?item wdt:P225 ?taxonname.
@@ -186,6 +197,7 @@ def download_names():
 def import_and_process():
     print('Downloading taxons')
     download_taxons()
+    exit(1)
     print('Downloading names')
     download_names()
     import_wikidata()
