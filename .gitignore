@@ -7,3 +7,6 @@ result.csv
 names.csv
 tree.gv
 tree.gv.svg
+labels.csv
+taxons.csv
+parent_taxons.csv

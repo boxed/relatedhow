@@ -10,7 +10,7 @@ from django.db.models import Q
 
 @total_ordering
 class Taxon(models.Model):
-    name = models.CharField(max_length=255, db_index=True)
+    name = models.CharField(max_length=255, db_index=True, null=True)
     english_name = models.CharField(max_length=255, db_index=True, null=True)
     parent = models.ForeignKey('self', null=True, on_delete=models.PROTECT, related_name='children')
     parents_string = models.TextField()
