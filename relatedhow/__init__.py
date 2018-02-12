@@ -1,4 +1,5 @@
 import csv
+from collections import defaultdict
 from itertools import groupby
 from urllib.parse import urlencode
 import requests
@@ -9,7 +10,7 @@ from subprocess import check_output
 
 
 def line_count(filename):
-    return int(check_output(["wc", "-l", filename]).split()[0])
+    return int(check_output(["/usr/bin/wc", "-l", filename]).split()[0])
 
 
 def wikidata_id_as_int(s):
@@ -28,9 +29,20 @@ def read_csv(filename):
     print('load %s' % filename)
     num_lines = line_count(filename)
     with open(filename, newline='') as csvfile:
-        reader = csv.DictReader(csvfile, delimiter='\t')
+        reader = csv.reader(csvfile, delimiter='\t')
+        next(reader)
         for row in tqdm(reader, total=num_lines):
-            yield row
+            yield wikidata_id_as_int(row[0]), row[1]
+
+
+class TaxonsDict(defaultdict):
+    def __missing__(self, key):
+        from relatedhow.viewer.models import Taxon
+        t = Taxon(pk=key)
+        t._children = set()
+        t._parents = set()
+        self[key] = t
+        return t
 
 
 def import_wikidata():
@@ -55,85 +67,81 @@ def import_wikidata():
         Taxon(id=14868878, name='Chelotrupes'),
     ]
 
-    taxon_by_pk = {x.id: x for x in initial_taxons}
+    taxon_by_pk = TaxonsDict()
+    for t in initial_taxons:
+        taxon_by_pk[t.pk] = t
+        t._children = set()
+        t._parents = set()
+
     pks_of_taxons_with_ambiguous_parents = set()
 
-    for row in read_csv('names.csv'):
-        name = fix_text(row['?label'])
-        pk = wikidata_id_as_int(row['?item'])
-        if pk not in taxon_by_pk:
-            taxon_by_pk[pk] = Taxon(pk=pk)
+    for pk, v in read_csv('names.csv'):
+        name = fix_text(v)
         taxon_by_pk[pk].name = name
 
-    for row in read_csv('labels.csv'):
-        name = fix_text(row['?itemLabel'])
-        pk = wikidata_id_as_int(row['?item'])
-        if pk not in taxon_by_pk:
-            taxon_by_pk[pk] = Taxon(pk=pk)
+    for pk, v in read_csv('labels.csv'):
+        name = fix_text(v)
         taxon_by_pk[pk].english_name = clean_name(name)
 
-    for row in read_csv('taxons.csv'):
-        name = fix_text(row['?taxonname'])
-        pk = wikidata_id_as_int(row['?item'])
-        if pk not in taxon_by_pk:
-            taxon_by_pk[pk] = Taxon(pk=pk)
+    for pk, v in read_csv('taxons.csv'):
+        name = fix_text(v)
         taxon_by_pk[pk].name = name
 
-    for row in read_csv('parent_taxons.csv'):
-        if '_:' in row['?parenttaxon']:
+    # def check_loop(pk, visited_pks=None):
+    #     if visited_pks is None:
+    #         visited_pks = []
+    #     if pk in visited_pks:
+    #         print('loop!', visited_pks, pk)
+    #         exit(1)
+    #     for p in taxon_by_pk[pk]._parents:
+    #         check_loop(p.pk, visited_pks=visited_pks)
+
+    for pk, v in read_csv('parent_taxons.csv'):
+        if '_:' in v:
             continue
-        pk = wikidata_id_as_int(row['?item'])
-        parent_pk = wikidata_id_as_int(row['?parenttaxon'])
-        if pk not in taxon_by_pk:
-            taxon_by_pk[pk] = Taxon(pk=pk)
-        if parent_pk not in taxon_by_pk:
-            taxon_by_pk[parent_pk] = Taxon(pk=parent_pk)
+        parent_pk = wikidata_id_as_int(v)
+        parent_taxon = taxon_by_pk[parent_pk]
+        taxon = taxon_by_pk[pk]
+        taxon._parents.add(parent_taxon)
+        parent_taxon._children.add(taxon)
+        # check_loop(pk)
 
-        taxon_by_pk[pk].add_parent(parent_pk)
-
-    print('set parents and (non-stored) children')
-
-    for taxon in taxon_by_pk.values():
-        taxon._children = set()
-
-    for taxon in tqdm(taxon_by_pk.values()):
-        if taxon.parents_string:
-            parent_pk = int(taxon.parents_string.partition('\t')[0])
-            parent_taxon = taxon_by_pk[parent_pk]
-            taxon.parent = parent_taxon
-            parent_taxon._children.add(taxon)
-            if '\t' in taxon.parents_string:
-                pks_of_taxons_with_ambiguous_parents.add(taxon.pk)
-
-    print('set rank')
+    print('set rank, step 1')
 
     def set_rank(taxon, rank):
-        taxon.rank = rank
-        for child in taxon._children:
-            set_rank(child, rank + 1)
+        if taxon.rank is None:
+            taxon.rank = rank
+            for child in taxon._children:
+                set_rank(child, rank + 1)
 
     for taxon in tqdm(taxon_by_pk.values()):
-        if taxon.rank is None and taxon.parent is None:
+        if taxon.rank is None and len(taxon._parents) == 0:
             set_rank(taxon, rank=0)
+
+    # print('Discarding rank-less taxons')
+    # count_before = len(taxon_by_pk)
+    # taxon_by_pk = {pk: t for pk, t in taxon_by_pk.items()}
+    # print('\tdiscarded', count_before - len(taxon_by_pk))
+
+    print('find ambiguous parents')
+
+    for taxon in tqdm(taxon_by_pk.values()):
+        if len(taxon._parents) > 1:
+            pks_of_taxons_with_ambiguous_parents.add(taxon.pk)
 
     print('fix ambiguous parents, until stable (%s)' % len(pks_of_taxons_with_ambiguous_parents))
     multiple_parents = set()
 
     def fix_ambiguous_parents():
-        multiple_parents.clear()
         count = 0
-        for pk in tqdm(pks_of_taxons_with_ambiguous_parents):
+        for pk in tqdm(pks_of_taxons_with_ambiguous_parents.copy()):
             taxon = taxon_by_pk[pk]
-            parents = {taxon_by_pk[int(parent_pk)] for parent_pk in taxon.parents_string.split('\t')}
-            max_rank = max([x.rank for x in parents])
-            relevant_parents = [p for p in parents if p.rank == max_rank]
-            if len(relevant_parents) > 1:
-                multiple_parents.add(taxon)
-            if taxon.parent != relevant_parents[0]:
-                taxon.parent = relevant_parents[0]
-                set_rank(taxon, rank=max_rank + 1)
+            if all(x.rank is not None for x in taxon._parents):
+                taxon.parent = sorted(taxon._parents, key=lambda x: x.rank)[0]
                 count += 1
-        return count
+                pks_of_taxons_with_ambiguous_parents.remove(pk)
+        print('\t%s fixed, %s left' % (count, len(pks_of_taxons_with_ambiguous_parents)))
+        return len(pks_of_taxons_with_ambiguous_parents)
 
     while fix_ambiguous_parents():
         continue
@@ -156,16 +164,11 @@ def import_wikidata():
         if pk != taxon.pk:
             print('invalid pk', pk, taxon)
 
-    print('Validating parent')
-
     print('...inserting %s clades' % len(taxon_by_pk))
     for k, group in groupby(sorted(taxon_by_pk.values(), key=lambda x: x.rank or 0), key=lambda x: x.rank or 0):
         print('inserting rank', k)
         group = list(sorted(group, key=lambda x: x.pk))
-        step1 = [x for x in group if x.parent is None or x.parent.pk > x.pk]
-        step2 = [x for x in group if x.parent is not None and x.parent.pk < x.pk]
-        Taxon.objects.bulk_create(step1, batch_size=100)
-        Taxon.objects.bulk_create(step2, batch_size=100)
+        Taxon.objects.bulk_create(group, batch_size=100)
 
 
 def clean_name(name):

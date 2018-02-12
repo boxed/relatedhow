@@ -13,16 +13,9 @@ class Taxon(models.Model):
     name = models.CharField(max_length=255, db_index=True, null=True)
     english_name = models.CharField(max_length=255, db_index=True, null=True)
     parent = models.ForeignKey('self', null=True, on_delete=models.PROTECT, related_name='children')
-    parents_string = models.TextField()
     rank = models.IntegerField(null=True)
     number_of_direct_children = models.IntegerField(null=True)
     number_of_direct_and_indirect_children = models.IntegerField(null=True)
-
-    def add_parent(self, p):
-        assert isinstance(p, int)
-        parents = {int(x) for x in self.parents_string.split('\t') if x}
-        parents.add(p)
-        self.parents_string = '\t'.join([str(x) for x in parents])
 
     def update_rank_of_children(self):
         for c in self.children.all():
