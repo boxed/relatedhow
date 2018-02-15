@@ -28,6 +28,9 @@ class Taxon(models.Model):
         result = []
         t = self
         while t.parent:
+            if t.parent.pk == t.pk:
+                print('warning: invalid taxon points to itself: %s' % t.pk)
+                return []
             result.append(t.parent)
             t = t.parent
         return result
