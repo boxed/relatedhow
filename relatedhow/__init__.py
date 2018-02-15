@@ -2,11 +2,18 @@ import csv
 from collections import defaultdict
 from itertools import groupby
 from urllib.parse import urlencode
+
+import os
 import requests
 from os.path import exists
 from tqdm import tqdm
 
 from subprocess import check_output
+
+# TODO: Sarcopterygii (160830) should be below Osteichthyes (27207)
+
+class FooException(Exception):
+    pass
 
 
 def line_count(filename):
@@ -106,48 +113,48 @@ def import_wikidata():
         parent_taxon._children.add(taxon)
         # check_loop(pk)
 
-    print('set rank, step 1')
-
-    def set_rank(taxon, rank):
-        if taxon.rank is None:
-            taxon.rank = rank
-            for child in taxon._children:
-                set_rank(child, rank + 1)
-
+    print('Set non-ambiguous parents')
+    top_level = set()
     for taxon in tqdm(taxon_by_pk.values()):
-        if taxon.rank is None and len(taxon._parents) == 0:
-            set_rank(taxon, rank=0)
-
-    # print('Discarding rank-less taxons')
-    # count_before = len(taxon_by_pk)
-    # taxon_by_pk = {pk: t for pk, t in taxon_by_pk.items()}
-    # print('\tdiscarded', count_before - len(taxon_by_pk))
-
-    print('find ambiguous parents')
-
-    for taxon in tqdm(taxon_by_pk.values()):
-        if len(taxon._parents) > 1:
+        if len(taxon._parents) == 1:
+            taxon.parent = list(taxon._parents)[0]
+        elif len(taxon._parents) > 1:
             pks_of_taxons_with_ambiguous_parents.add(taxon.pk)
+        elif len(taxon._parents) == 0:
+            top_level.add(taxon.pk)
+        else:
+            assert False
 
     print('fix ambiguous parents, until stable (%s)' % len(pks_of_taxons_with_ambiguous_parents))
-    multiple_parents = set()
 
     def fix_ambiguous_parents():
         count = 0
         for pk in tqdm(pks_of_taxons_with_ambiguous_parents.copy()):
             taxon = taxon_by_pk[pk]
-            if all(x.rank is not None for x in taxon._parents):
-                taxon.parent = sorted(taxon._parents, key=lambda x: x.rank)[0]
-                count += 1
+
+            def get_all_parents_or_raise(t):
+                result = []
+                while t._parents:
+                    if t.parent:
+                        result.append(t.parent)
+                    else:
+                        raise FooException('Still ambiguous')
+                    t = t.parent
+                return result
+
+            try:
+                taxon.parent = sorted(taxon._parents, key=lambda x: len(get_all_parents_or_raise(x)), reverse=True)[0]
+                taxon._parents = {taxon.parent}
                 pks_of_taxons_with_ambiguous_parents.remove(pk)
+                count += 1
+            except FooException:
+                continue
+
         print('\t%s fixed, %s left' % (count, len(pks_of_taxons_with_ambiguous_parents)))
         return len(pks_of_taxons_with_ambiguous_parents)
 
     while fix_ambiguous_parents():
         continue
-
-    for taxon in multiple_parents:
-        print('Warning: %s has multiple parents with the same rank' % taxon)
 
     print('set number of children, direct and indirect')
 
@@ -164,10 +171,18 @@ def import_wikidata():
         if pk != taxon.pk:
             print('invalid pk', pk, taxon)
 
+    print('set ranks')
+
+    for taxon in tqdm(taxon_by_pk.values()):
+        taxon.rank = len(taxon.get_all_parents())
+
     print('...inserting %s clades' % len(taxon_by_pk))
     for k, group in groupby(sorted(taxon_by_pk.values(), key=lambda x: x.rank or 0), key=lambda x: x.rank or 0):
-        print('inserting rank', k)
-        group = list(sorted(group, key=lambda x: x.pk))
+        group = list(group)
+        print('inserting rank %s (%s items)' % (k, len(group)))
+        for x in group:
+            if len(x.get_all_parents()) != k:
+                import ipdb; ipdb.set_trace()
         Taxon.objects.bulk_create(group, batch_size=100)
 
 
@@ -241,3 +256,5 @@ def import_and_process():
     )
 
     import_wikidata()
+    # fast exit because we're using a lot of memory and cleaning that is silly
+    os._exit(0)
