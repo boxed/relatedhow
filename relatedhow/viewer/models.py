@@ -31,6 +31,9 @@ class Taxon(models.Model):
             if t.parent.pk == t.pk:
                 print('warning: invalid taxon points to itself: %s' % t.pk)
                 return []
+            if len(result) > 1000:
+                print('warning: probable infinite loop for %s' % t.pk)
+                return []
             result.append(t.parent)
             t = t.parent
         return result

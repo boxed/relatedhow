@@ -84,15 +84,18 @@ def import_wikidata():
 
     for pk, v in read_csv('names.csv'):
         name = fix_text(v)
-        taxon_by_pk[pk].name = name
+        if name:
+            taxon_by_pk[pk].english_name = clean_name(name)
 
     for pk, v in read_csv('labels.csv'):
         name = fix_text(v)
-        taxon_by_pk[pk].english_name = clean_name(name)
+        if name:
+            taxon_by_pk[pk].english_name = clean_name(name)
 
     for pk, v in read_csv('taxons.csv'):
         name = fix_text(v)
-        taxon_by_pk[pk].name = name
+        if name:
+            taxon_by_pk[pk].name = name
 
     # def check_loop(pk, visited_pks=None):
     #     if visited_pks is None:
