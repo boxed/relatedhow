@@ -23,7 +23,7 @@ def index(request):
         ts = [find_matching_taxons(name) for name in names]
 
         errors = [
-            (name, sorted(taxons, key=lambda x: (x.name, x.english_name)))
+            (name, sorted(taxons, key=lambda x: (x.name or '', x.english_name or '')))
             for name, taxons in zip(names, ts)
             if len(taxons) != 1
         ]

@@ -26,7 +26,7 @@ if __name__ == '__main__':
                 print(x)
             exit(1)
 
-    parent_lists = sorted([list(reversed(x[0].get_all_parents())) for x in taxons])
+    parent_lists = sorted([list(reversed(x[0].get_all_parents())) + [x[0]] for x in taxons])
 
     # Now on to the actual work
     for l in zip_longest(*parent_lists):
