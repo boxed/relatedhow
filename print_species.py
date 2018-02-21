@@ -15,8 +15,8 @@ if __name__ == '__main__':
 
     def print_taxons(taxons):
         for t in taxons:
-            print('--', t, '-', t.english_name, '--', t.wikidata_id)
-            for parent in t.get_all_parents():
+            print('--', t, '--')
+            for parent in reversed(t.get_all_parents()):
                 print(parent)
             print()
             print('Direct children:', t.number_of_direct_children)

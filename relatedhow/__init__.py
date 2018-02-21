@@ -113,7 +113,6 @@ def import_wikidata():
         parent_taxon = taxon_by_pk[parent_pk]
         taxon = taxon_by_pk[pk]
         taxon._parents.add(parent_taxon)
-        parent_taxon._children.add(taxon)
         # check_loop(pk)
 
     print('Set non-ambiguous parents')
@@ -158,6 +157,11 @@ def import_wikidata():
 
     while fix_ambiguous_parents():
         continue
+
+    print('set children')
+    for taxon in tqdm(taxon_by_pk.values()):
+        if taxon.parent:
+            taxon.parent._children.add(taxon)
 
     print('set number of children, direct and indirect')
 
