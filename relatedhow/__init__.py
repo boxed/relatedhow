@@ -234,7 +234,8 @@ def import_and_process():
         filename='parent_taxons.csv',
         select="""
             SELECT ?item ?parenttaxon WHERE {
-              ?item wdt:P171 ?parenttaxon.
+              ?item p:P171 ?p171stm .
+              ?p171stm ps:P171 ?parenttaxon .
             }
             """
     )
