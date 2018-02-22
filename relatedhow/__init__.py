@@ -195,6 +195,7 @@ def import_wikidata():
 
 
 def clean_name(name):
+    name = name.strip()
     if name.endswith('@en'):
         if name.startswith('"'):
             assert name.endswith('"@en')
