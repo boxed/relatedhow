@@ -23,7 +23,6 @@ def line_count(filename):
 def wikidata_id_as_int(s):
     prefix = '<http://www.wikidata.org/entity/Q'
     suffix = '>'
-    s = s.strip()
     assert s.startswith(prefix), repr(s)
     assert s.endswith(suffix), repr(s)
     return int(s[len(prefix):-len(suffix)])
@@ -41,7 +40,7 @@ def read_csv(filename):
         csvfile.readline()  # skip header line
         for row in tqdm(csvfile.readlines(), total=num_lines):
             row = row.split('\t')
-            yield wikidata_id_as_int(row[0]), row[1]
+            yield wikidata_id_as_int(row[0]), row[1].strip()
 
 
 class TaxonsDict(defaultdict):
@@ -195,7 +194,6 @@ def import_wikidata():
 
 
 def clean_name(name):
-    name = name.strip()
     if name.endswith('@en'):
         if name.startswith('"'):
             assert name.endswith('"@en')
