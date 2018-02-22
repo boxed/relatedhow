@@ -1,5 +1,5 @@
-import csv
 from collections import defaultdict
+from datetime import datetime
 from itertools import groupby
 from urllib.parse import urlencode
 
@@ -23,8 +23,9 @@ def line_count(filename):
 def wikidata_id_as_int(s):
     prefix = '<http://www.wikidata.org/entity/Q'
     suffix = '>'
-    assert s.startswith(prefix), s
-    assert s.endswith(suffix), s
+    s = s.strip()
+    assert s.startswith(prefix), repr(s)
+    assert s.endswith(suffix), repr(s)
     return int(s[len(prefix):-len(suffix)])
 
 
@@ -33,12 +34,13 @@ def fix_text(s):
 
 
 def read_csv(filename):
+    # I know the format here, so I don't need to use the csv module. This gives me a bit higher performance
     print('load %s' % filename)
     num_lines = line_count(filename)
     with open(filename, newline='') as csvfile:
-        reader = csv.reader(csvfile, delimiter='\t')
-        next(reader)
-        for row in tqdm(reader, total=num_lines):
+        csvfile.readline()  # skip header line
+        for row in tqdm(csvfile.readlines(), total=num_lines):
+            row = row.split('\t')
             yield wikidata_id_as_int(row[0]), row[1]
 
 
@@ -153,7 +155,7 @@ def import_wikidata():
                 continue
 
         print('\t%s fixed, %s left' % (count, len(pks_of_taxons_with_ambiguous_parents)))
-        return len(pks_of_taxons_with_ambiguous_parents)
+        return count
 
     while fix_ambiguous_parents():
         continue
@@ -186,11 +188,10 @@ def import_wikidata():
     print('...inserting %s clades' % len(taxon_by_pk))
     for k, group in groupby(sorted(taxon_by_pk.values(), key=lambda x: x.rank or 0), key=lambda x: x.rank or 0):
         group = list(group)
-        print('inserting rank %s (%s items)' % (k, len(group)))
-        for x in group:
-            if len(x.get_all_parents()) != k:
-                import ipdb; ipdb.set_trace()
+        start = datetime.now()
+        print('inserting rank %s (%s items)' % (k, len(group)), end='', flush=True)
         Taxon.objects.bulk_create(group, batch_size=100)
+        print(' .. took %s' % (datetime.now() - start))
 
 
 def clean_name(name):
