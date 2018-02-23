@@ -82,6 +82,7 @@ def import_wikidata():
         t._children = set()
         t._parents = set()
 
+    # TODO: synonyms point both ways, need to choose one here
     fix_obsolete_pks = {}
     for obsolete_pk, v in read_csv('synonyms.csv'):
         if '_:' in v:
