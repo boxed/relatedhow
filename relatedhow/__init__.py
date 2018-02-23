@@ -10,7 +10,8 @@ from tqdm import tqdm
 
 from subprocess import check_output
 
-# TODO: Sarcopterygii (160830) should be below Osteichthyes (27207)
+biota_pk = 2382443
+
 
 class FooException(Exception):
     pass
@@ -81,6 +82,12 @@ def import_wikidata():
         t._children = set()
         t._parents = set()
 
+    fix_obsolete_pks = {}
+    for obsolete_pk, v in read_csv('synonyms.csv'):
+        if '_:' in v:
+            continue
+        fix_obsolete_pks[obsolete_pk] = wikidata_id_as_int(v)
+
     pks_of_taxons_with_ambiguous_parents = set()
 
     for pk, v in read_csv('names.csv'):
@@ -95,6 +102,7 @@ def import_wikidata():
 
     for pk, v in read_csv('taxons.csv'):
         name = fix_text(v)
+        pk = fix_obsolete_pks.get(pk, pk)
         if name:
             taxon_by_pk[pk].name = name
 
@@ -110,7 +118,9 @@ def import_wikidata():
     for pk, v in read_csv('parent_taxons.csv'):
         if '_:' in v:
             continue
+        pk = fix_obsolete_pks.get(pk, pk)
         parent_pk = wikidata_id_as_int(v)
+        parent_pk = fix_obsolete_pks.get(parent_pk, parent_pk)
         parent_taxon = taxon_by_pk[parent_pk]
         taxon = taxon_by_pk[pk]
         taxon._parents.add(parent_taxon)
@@ -137,12 +147,17 @@ def import_wikidata():
 
             def get_all_parents_or_raise(t):
                 result = []
+                orig = t
                 while t._parents:
                     if t.parent:
                         result.append(t.parent)
                     else:
                         raise FooException('Still ambiguous')
                     t = t.parent
+                # handle cases where tree is not in biota
+                if result and result[-1].pk != biota_pk:
+                    print('\t%s is not related to biota' % orig.pk)
+                    return []
                 return result
 
             try:
@@ -164,25 +179,27 @@ def import_wikidata():
         if taxon.parent:
             taxon.parent._children.add(taxon)
 
-    print('set number of children, direct and indirect')
+    print('set rank, and number of children (direct and indirect)')
 
-    def get_count(t):
+    def get_count(t, rank):
+        t.rank = rank
         t.number_of_direct_children = len(t._children)
-        t.number_of_direct_and_indirect_children = sum(get_count(c) for c in t._children) + t.number_of_direct_children
+        t.number_of_direct_and_indirect_children = sum(get_count(c, rank=rank + 1) for c in t._children) + t.number_of_direct_children
         return t.number_of_direct_and_indirect_children
 
-    biota = taxon_by_pk[2382443]
-    get_count(biota)
+    biota = taxon_by_pk[biota_pk]
+    get_count(biota, rank=0)
 
-    print('validating pks')
-    for pk, taxon in taxon_by_pk.items():
-        if pk != taxon.pk:
-            print('invalid pk', pk, taxon)
-
-    print('set ranks')
-
-    for taxon in tqdm(taxon_by_pk.values()):
-        taxon.rank = len(taxon.get_all_parents())
+    # print('remove non-biota trees')
+    # non_biota_tree_roots = [t for t in taxon_by_pk.values() if t.pk != biota and t.parent is None]
+    #
+    # def remove_tree(t):
+    #     for child in t._children:
+    #         remove_tree(child)
+    #     del taxon_by_pk[t.pk]
+    #
+    # for t in non_biota_tree_roots:
+    #     remove_tree(t)
 
     print('...inserting %s clades' % len(taxon_by_pk))
     for k, group in groupby(sorted(taxon_by_pk.values(), key=lambda x: x.rank or 0), key=lambda x: x.rank or 0):
@@ -228,6 +245,15 @@ def import_and_process():
               FILTER (!isBLANK(?taxonname)).
             }
             """,
+    )
+
+    download(
+        filename='synonyms.csv',
+        select="""
+            SELECT ?item ?synonym WHERE {
+                  ?item wdt:P1420 ?synonym.
+                }
+            """
     )
 
     download(
