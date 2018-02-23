@@ -27,14 +27,6 @@ if __name__ == '__main__':
     django.setup()
 
     from relatedhow.viewer.models import Taxon
-    taxons = list(Taxon.objects.all())
-    for k, group in groupby(sorted(taxons, key=lambda x: x.rank or 0), key=lambda x: x.rank or 0):
-        print(f'rank {k}')
-        with open(f'export/{k}.csv', 'w') as csvfile:
-            w = csv.writer(csvfile, delimiter='\t')
-            w.writerow(['pk', 'name', 'english_name', 'parent_pk'])
-            for t in tqdm(group):
-                w.writerow([t.pk, t.name, t.english_name, t.parent.pk if t.parent else None])
 
     biota = 2382443
     eukaryota = 19088
