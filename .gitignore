@@ -10,4 +10,5 @@ tree.gv.svg
 labels.csv
 taxons.csv
 parent_taxons.csv
+synonyms.csv
 export/

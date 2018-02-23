@@ -190,16 +190,17 @@ def import_wikidata():
     biota = taxon_by_pk[biota_pk]
     get_count(biota, rank=0)
 
-    # print('remove non-biota trees')
-    # non_biota_tree_roots = [t for t in taxon_by_pk.values() if t.pk != biota and t.parent is None]
-    #
-    # def remove_tree(t):
-    #     for child in t._children:
-    #         remove_tree(child)
-    #     del taxon_by_pk[t.pk]
-    #
-    # for t in non_biota_tree_roots:
-    #     remove_tree(t)
+    print('remove non-biota trees')
+    non_biota_tree_roots = [t for t in taxon_by_pk.values() if t.pk != biota_pk and t.parent is None]
+
+    def remove_tree(t):
+        for child in t._children:
+            remove_tree(child)
+        del taxon_by_pk[t.pk]
+
+    for t in non_biota_tree_roots:
+        print('\t', t)
+        remove_tree(t)
 
     print('...inserting %s clades' % len(taxon_by_pk))
     for k, group in groupby(sorted(taxon_by_pk.values(), key=lambda x: x.rank or 0), key=lambda x: x.rank or 0):
