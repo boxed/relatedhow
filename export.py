@@ -1,25 +1,8 @@
 import csv
 import os
-from itertools import groupby
 
 import django
-from django.db.models import Max
 from tqdm import tqdm
-
-
-def export(taxons, filename):
-    with open(f'export/{filename}.csv', 'w') as csvfile:
-        print(f'exporting {filename}')
-        w = csv.writer(csvfile, delimiter='\t')
-        w.writerow(['pk', 'name', 'english_name', 'parent_pk'])
-
-        def write(t):
-            w.writerow([t.pk, t.name, t.english_name, t.parent.pk])
-            for t in t.children.all():
-                write(t)
-
-        for t in tqdm(taxons):
-            write(t)
 
 
 if __name__ == '__main__':
@@ -28,25 +11,50 @@ if __name__ == '__main__':
 
     from relatedhow.viewer.models import Taxon
 
-    biota = 2382443
-    eukaryota = 19088
-    export(Taxon.objects.get(pk=biota).children.exclude(pk=eukaryota), 'misc')
+    print('load')
+    taxon_by_pk = {t.pk: t for t in list(Taxon.objects.all())}
+    print('setup')
+    for t in tqdm(taxon_by_pk.values()):
+        t._children = []
+    for t in tqdm(taxon_by_pk.values()):
+        if t.parent_id:
+            t.parent = taxon_by_pk[t.parent_id]
+            t.parent._children.append(t)
 
-    animalia = 729
-    plantae = 756
-    export(Taxon.objects.get(pk=eukaryota).children.exclude(pk__in=[animalia, plantae]), 'eukaryota')
+    foo = dict(
+        biota=2382443,
+        eukaryota=19088,
+        animalia=729,
+        chromista=862296,  # some algae
+        fungi=764,
+        bilateria=5173,
+        protostomia=5171,  # non-vertebrate bilateral
+        deuterostomia=150866,  # includes vertebrates
+        actinopterygii=127282,  # Ray - finned Fishes
+        reptilia=10811,
+        synapsidomorpha=21353733,  # includes mammals
+        superrosids=23905211,  # big group of flowering plants
+        superasterids=23927181,  # big group of flowering plants
+    )
+    change_file_pks = set(foo.values())
 
-    export(Taxon.objects.get(pk=plantae).children.all(), 'plantae')
+    counter = 0
 
-    bilateria = 5173
-    export(Taxon.objects.get(pk=animalia).children.exclude(pk=bilateria), 'animalia')
-    export(Taxon.objects.get(pk=bilateria).children.all(), 'bilateria')
+    def export(t, writer=None):
+        global counter
+        if writer is None or t.pk in change_file_pks:
+            name = t.name or t.english_name or f'Q{t.pk}'
+            print(f'change file: {name}')
+            with open(f'export/{counter:02}_{name}.csv', 'w') as csvfile:
+                counter += 1
+                writer = csv.writer(csvfile, delimiter='\t')
+                writer.writerow([t.pk, t.name, t.english_name, t.parent.pk if t.parent else ''])
+                for t in t._children:
+                    export(t, writer)
+            print(f'done with {name}')
+        else:
+            writer.writerow([t.pk, t.name, t.english_name, t.parent.pk if t.parent else ''])
+            for t in t._children:
+                export(t, writer)
 
-    protostomia = 5171
-    deuterostomia = 150866
-    export(Taxon.objects.get(pk=bilateria).children.exclude(pk__in=[protostomia, deuterostomia]), 'bilateria')
-    export(Taxon.objects.get(pk=protostomia).children.all(), 'protostomia')
-    export(Taxon.objects.get(pk=deuterostomia).children.all(), 'deuterostomia')
-
-    # for t in Taxon.objects.get(name='insecta').children.all():
-    #     print(t, t.number_of_direct_and_indirect_children)
+    export(taxon_by_pk[foo['biota']])

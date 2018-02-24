@@ -82,12 +82,11 @@ def import_wikidata():
         t._children = set()
         t._parents = set()
 
-    # TODO: synonyms point both ways, need to choose one here
     fix_obsolete_pks = {}
-    for obsolete_pk, v in read_csv('synonyms.csv'):
-        if '_:' in v:
-            continue
-        fix_obsolete_pks[obsolete_pk] = wikidata_id_as_int(v)
+    for pk1, v in read_csv('synonyms.csv'):
+        pk2 = wikidata_id_as_int(v)
+        use_pk, obsolete_pk = sorted([pk1, pk2])
+        fix_obsolete_pks[obsolete_pk] = use_pk
 
     pks_of_taxons_with_ambiguous_parents = set()
 
@@ -286,7 +285,7 @@ def import_and_process():
               ?item wdt:P31 wd:Q16521.
               ?item wdt:P225 ?taxonname.
               FILTER isBLANK(?taxonname) .
-              SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+              SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE]". }
             }
             """,
     )
