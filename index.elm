@@ -53,7 +53,7 @@ loadNext model =
             Cmd.none
 
         Just nextFileName ->
-            Http.send FileLoaded (Http.getString ("file:///Users/boxed/Projects/relatedhow/export/" ++ nextFileName))
+            Http.send FileLoaded (Http.getString ("file:///Users/boxed/Projects/relatedhow/export_relevant/" ++ nextFileName))
 
 
 

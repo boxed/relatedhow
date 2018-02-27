@@ -12,4 +12,5 @@ taxons.csv
 parent_taxons.csv
 synonyms.csv
 export/
+export_relevant/
 elm-stuff/
