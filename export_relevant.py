@@ -23,7 +23,8 @@ if __name__ == '__main__':
             t.parent._children.append(t)
 
     print('relevant...')
-    taxon_by_pk = {t.pk: t for t in tqdm(taxon_by_pk.values()) if t.name is None or t.parent is None or t.parent.name is None or not t.name.startswith(t.parent.name + ' ')}
+    taxon_by_pk = {t.pk: t for t in tqdm(taxon_by_pk.values()) if t.number_of_direct_and_indirect_children > 100 or t.name is None or t.parent is None or t.parent.name is None or not t.name.startswith(t.parent.name + ' ')}
+    print(len(taxon_by_pk))
     print('setup2')
     for t in tqdm(taxon_by_pk.values()):
         t._children = []

@@ -106,6 +106,20 @@ def import_wikidata():
         if name:
             taxon_by_pk[pk].name = name
 
+    print('loading missing names')
+    for t in tqdm([x for x in taxon_by_pk.values() if x.name is None]):
+        r = download_contents(f'{t.pk}', """
+SELECT ?itemLabel WHERE {
+  VALUES ?item { wd:Q%s }
+  ?item p:P171 ?p171stm .
+  ?p171stm ps:P171 ?parenttaxon;
+           wikibase:rank ?rank .
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
+}
+ORDER BY DESC(?rank)
+""" % t.pk)
+        t.name = clean_name(r.strip().split('\n')[-1])
+
     # def check_loop(pk, visited_pks=None):
     #     if visited_pks is None:
     #         visited_pks = []
@@ -212,6 +226,7 @@ def import_wikidata():
 
 
 def clean_name(name):
+    name = name.strip()
     if name.endswith('@en'):
         if name.startswith('"'):
             assert name.endswith('"@en')
@@ -219,7 +234,7 @@ def clean_name(name):
         else:
             assert name.endswith('@en')
             name = name[:-len('@en')]
-    return name
+    return name.replace('\t', ' ')
 
 
 def download(select, filename):
@@ -228,13 +243,18 @@ def download(select, filename):
         return
 
     print('Downloading %s' % filename)
+    result = download_contents(filename, select)
+
+    with open(filename, 'w') as f:
+        f.write(result)
+
+
+def download_contents(filename, select):
     result = requests.get('https://query.wikidata.org/sparql?%s' % urlencode([('query', select)]), headers={'Accept': 'text/tab-separated-values'}).text
     if '\tat ' in result:
         print('Error with download of %s, got %sMB' % (filename, len(result) / (1024 * 10424)))
         exit(1)
-
-    with open(filename, 'w') as f:
-        f.write(result)
+    return result
 
 
 def import_and_process():

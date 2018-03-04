@@ -3,7 +3,7 @@ module Main exposing (..)
 import Dict exposing (Dict)
 import Html exposing (Html, a, button, div, form, h1, input, text)
 import Html.Attributes exposing (action, href, id, method, name, placeholder, title, type_, value)
-import Html.Events exposing (onClick)
+import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode
 
@@ -15,6 +15,65 @@ main =
         , update = update
         , subscriptions = subscriptions
         }
+
+
+type Msg
+    = FileLoaded (Result Http.Error String)
+    | Search
+    | SearchText String
+
+
+type alias Model =
+    { filesLeft : List String
+    , data : Dict Int Clade
+    , error : Maybe Http.Error
+    , searchText : String
+    , selectedClade : Maybe Clade
+    }
+
+
+init : ( Model, Cmd Msg )
+init =
+    let
+        model =
+            Model files Dict.empty Nothing "171283" Nothing
+    in
+    ( model, loadNext model )
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        FileLoaded (Ok data) ->
+            parseData model data ! [ Cmd.none ]
+
+        FileLoaded (Err (Http.BadStatus response)) ->
+            let
+                cmd =
+                    if List.isEmpty model.filesLeft then
+                        Cmd.none
+                    else
+                        loadNext model
+            in
+            parseData model response.body ! [ cmd ]
+
+        FileLoaded (Err error) ->
+            { model | error = Just error } ! [ Cmd.none ]
+
+        SearchText s ->
+            { model | searchText = s } ! [ Cmd.none ]
+
+        Search ->
+            case String.toInt model.searchText of
+                Ok pk ->
+                    { model | selectedClade = Dict.get pk model.data } ! [ Cmd.none ]
+
+                _ ->
+                    model ! [ Cmd.none ]
+
+
+
+--            model ! [ Cmd.none ]
 
 
 files =
@@ -33,17 +92,6 @@ files =
 
     --    , "12_Protostomia.csv"
     ]
-
-
-init : ( Model, Cmd Msg )
-init =
-    let
-        model =
-            Model files Dict.empty Nothing
-
-        --            parseData (Model files Dict.empty) testData
-    in
-    ( model, loadNext model )
 
 
 loadNext : Model -> Cmd Msg
@@ -67,19 +115,8 @@ type alias Clade =
     }
 
 
-type alias Model =
-    { filesLeft : List String
-    , data : Dict Int Clade
-    , error : Maybe Http.Error
-    }
-
-
 
 -- UPDATE
-
-
-type Msg
-    = FileLoaded (Result Http.Error String)
 
 
 parseLine : List String -> ( Int, Clade )
@@ -108,13 +145,16 @@ parseLine line =
                       }
                     )
 
-                ( Ok pk, Err _ ) ->
-                    ( pk
-                    , { name = name
-                      , pk = pk
-                      , parentPk = Nothing
-                      }
-                    )
+                ( Ok pk, Err e ) ->
+                    if parentPk == "" then
+                        ( pk
+                        , { name = name
+                          , pk = pk
+                          , parentPk = Nothing
+                          }
+                        )
+                    else
+                        Debug.crash ("parseLine 3" ++ parentPk) parentPk
 
                 ( _, _ ) ->
                     Debug.crash "parseLine 1"
@@ -134,9 +174,13 @@ parseData model data =
         rawLines =
             List.filter (\x -> not (String.isEmpty x)) (String.split "\n" data)
 
+        trimmed : List String
+        trimmed =
+            List.map String.trim rawLines
+
         lines : List (List String)
         lines =
-            List.map (String.split "\t") rawLines
+            List.map (String.split "\t") trimmed
 
         parsed : List ( Int, Clade )
         parsed =
@@ -146,28 +190,6 @@ parseData model data =
         | data = Dict.union (Dict.fromList parsed) model.data
         , filesLeft = List.drop 1 model.filesLeft
     }
-
-
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-    case msg of
-        FileLoaded (Ok data) ->
-            -- TODO: load next file
-            ( parseData model data, Cmd.none )
-
-        FileLoaded (Err (Http.BadStatus response)) ->
-            -- TODO: load next file
-            let
-                cmd =
-                    if List.isEmpty model.filesLeft then
-                        Cmd.none
-                    else
-                        loadNext model
-            in
-            ( parseData model response.body, cmd )
-
-        FileLoaded (Err error) ->
-            ( { model | error = Just error }, Cmd.none )
 
 
 
@@ -190,17 +212,18 @@ view model =
             [ a [ href "/" ]
                 [ text "Related how?" ]
             ]
-        , form [ action "/", method "post" ]
-            [ input
-                [ id "q"
-                , name "q"
-                , placeholder "Comma separated list of species names, or just one species name"
-                , title "Search"
-                , type_ "text"
-                , value ""
-                ]
-                []
+        , input
+            [ id "q"
+            , name "q"
+            , placeholder "Comma separated list of species names, or just one species name"
+            , title "Search"
+            , type_ "text"
+            , value model.searchText
+            , onInput SearchText
             ]
+            []
+        , button [ onClick Search ] [ text "search" ]
         , text (toString (Dict.size model.data))
         , text (toString model.filesLeft)
+        , text (toString model.selectedClade)
         ]
