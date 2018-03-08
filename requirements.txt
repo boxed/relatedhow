@@ -3,3 +3,4 @@ requests
 mysqlclient
 graphviz
 tqdm
+gunicorn
