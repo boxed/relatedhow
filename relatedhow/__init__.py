@@ -59,8 +59,8 @@ def import_wikidata():
 
     print('Clearing database')
     from django.db import connection
-    cursor = connection.cursor()
-    cursor.execute('TRUNCATE TABLE `viewer_taxon`')
+    # cursor = connection.cursor()
+    # cursor.execute('TRUNCATE TABLE `viewer_taxon`')
 
     initial_taxons = [
         Taxon(id=2382443, name='Biota', english_name='Life'),
