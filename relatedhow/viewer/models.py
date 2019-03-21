@@ -42,7 +42,16 @@ class Taxon(models.Model):
         return self.name
 
     def __str__(self):
-        return f'{self.name} ({self.pk})'
+        return f'{self.name or self.english_name}'
+
+    def placeholder_str(self):
+        return f'#####{self.id}%%%%%'
+
+    def link_str(self):
+        return f'<a xlink:href="{self.get_absolute_url()}">{self.name or self.english_name}</a>'
+
+    def explicit_str(self):
+        return f'{self} ({self.pk})'
 
     def __lt__(self, other):
         return self.name < other.name

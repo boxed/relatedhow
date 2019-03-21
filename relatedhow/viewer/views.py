@@ -2,6 +2,8 @@
 from __future__ import unicode_literals
 
 import os
+import re
+
 from django.shortcuts import render, redirect
 from django.utils.safestring import mark_safe
 from graphviz import Digraph
@@ -34,7 +36,7 @@ def index(request):
                 request=request,
                 template_name='viewer/disambiguation.html',
                 context=dict(
-                    q=','.join(str(taxon) for taxon in taxons),
+                    q=','.join(taxon.explicit_str() for taxon in taxons),
                     errors=errors,
                 ),
             )
@@ -55,26 +57,34 @@ def index(request):
 def tree(request, pks):
     taxons = [Taxon.objects.get(pk=pk) for pk in extract_parts(pks)]
 
+    taxon_by_pk = {x.pk: x for x in taxons}
+
     edges = set()
     for t in taxons:
         tree = list(reversed(t.get_all_parents())) + [t]
+        for x in tree:
+            taxon_by_pk[x.pk] = x
         for a, b in zip(tree[:-1], tree[1:]):
-            edges.add((str(a), str(b)))
+            edges.add((a.placeholder_str(), b.placeholder_str()))
 
     # TODO: filename! and write to temp dir
     g = Digraph('tree', format='svg')
-    # for t in taxons:
-    #     g.node(str(t), label=f'<a href="{t.get_absolute_url()}">{t.name}</a>')
     g.edges(edges)
-    path = g.render(filename='RANDOM_HERE', cleanup=True)
+    path = g.render(filename='/tmp/graph', cleanup=True)
     svg = open(path).read()
     os.remove(path)
+
+    def replacement(matchobj):
+        id = int(matchobj.group(1))
+        return taxon_by_pk[id].link_str()
+
+    svg = re.sub('#####(\d+)%%%%%', replacement, svg)
 
     return render(
         request=request,
         template_name='viewer/tree.html',
         context=dict(
-            q=', '.join(str(t) for t in taxons),
+            q=', '.join(t.explicit_str() for t in taxons),
             tree=mark_safe(svg),
         ),
     )
@@ -88,6 +98,6 @@ def clade(request, pk):
         template_name='viewer/clade.html',
         context=dict(
             taxon=t,
-            q=f'{t.name} ({t.pk})',
+            q=t.explicit_str(),
         )
     )

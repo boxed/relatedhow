@@ -310,6 +310,16 @@ def import_and_process():
             """,
     )
 
+    download(
+        filename='images.csv',
+        select="""
+            SELECT DISTINCT ?item ?image WHERE {
+              ?item wdt:P31 wd:Q16521.
+              ?item wdt:P18 ?image.
+            }
+        """
+    )
+
     import_wikidata()
     # fast exit because we're using a lot of memory and cleaning that is silly
     os._exit(0)
