@@ -101,3 +101,7 @@ def clade(request, pk):
             q=t.explicit_str(),
         )
     )
+
+
+def fix_issues(request):
+    pass

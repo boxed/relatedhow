@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import datetime
 from itertools import groupby
+from time import sleep
 from urllib.parse import urlencode
 
 import os
@@ -9,6 +10,8 @@ from os.path import exists
 from tqdm import tqdm
 
 from subprocess import check_output
+
+from tri.struct import Struct
 
 biota_pk = 2382443
 
@@ -44,10 +47,16 @@ def read_csv(filename):
             yield wikidata_id_as_int(row[0]), row[1].strip()
 
 
+class FakeTaxon(Struct):
+    def __hash__(self):
+        return hash(self.pk)
+
+
 class TaxonsDict(defaultdict):
     def __missing__(self, key):
         from relatedhow.viewer.models import Taxon
-        t = Taxon(pk=key)
+        # t = Taxon(pk=key)
+        t = FakeTaxon(pk=key, name=None)
         t._children = set()
         t._parents = set()
         self[key] = t
@@ -57,8 +66,8 @@ class TaxonsDict(defaultdict):
 def import_wikidata():
     from relatedhow.viewer.models import Taxon
 
-    print('Clearing database')
-    from django.db import connection
+    # print('Clearing database')
+    # from django.db import connection
     # cursor = connection.cursor()
     # cursor.execute('TRUNCATE TABLE `viewer_taxon`')
 
@@ -95,10 +104,11 @@ def import_wikidata():
         if name:
             taxon_by_pk[pk].english_name = clean_name(name)
 
-    for pk, v in read_csv('labels.csv'):
-        name = fix_text(v)
-        if name:
-            taxon_by_pk[pk].english_name = clean_name(name)
+    ## getting labels no longer work
+    # for pk, v in read_csv('labels.csv'):
+    #     name = fix_text(v)
+    #     if name:
+    #         taxon_by_pk[pk].english_name = clean_name(name)
 
     for pk, v in read_csv('taxons.csv'):
         name = fix_text(v)
@@ -106,19 +116,38 @@ def import_wikidata():
         if name:
             taxon_by_pk[pk].name = name
 
+    def backload_missing_data(filename, query, process_item):
+        if exists(filename):
+            for pk, v in read_csv(filename):
+                process_item(pk, v)
+        else:
+            with open(filename, 'w') as output:
+                output.write('pk\tvalue\n')
+                for t in tqdm([x for x in taxon_by_pk.values() if x.name is None]):
+                    r = download_contents(f'{t.pk}', query % t.pk)
+                    value = r.strip().split('\n')[-1]
+                    process_item(t.pk, value)
+                    output.write(f'{t.pk}\t{value}\n')
+                    output.flush()
+
     print('loading missing names')
-    for t in tqdm([x for x in taxon_by_pk.values() if x.name is None]):
-        r = download_contents(f'{t.pk}', """
-SELECT ?itemLabel WHERE {
-  VALUES ?item { wd:Q%s }
-  ?item p:P171 ?p171stm .
-  ?p171stm ps:P171 ?parenttaxon;
-           wikibase:rank ?rank .
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
-}
-ORDER BY DESC(?rank)
-""" % t.pk)
-        t.name = clean_name(r.strip().split('\n')[-1])
+
+    def set_name(pk, value):
+        taxon_by_pk[pk].name = clean_name(value)
+
+    backload_missing_data(
+        filename='missing_names.csv',
+        query="""
+            SELECT ?itemLabel WHERE {
+              VALUES ?item { wd:Q%s }
+              ?item p:P171 ?p171stm .
+              ?p171stm ps:P171 ?parenttaxon;
+                       wikibase:rank ?rank .
+              SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
+            }
+            ORDER BY DESC(?rank)
+            """,
+        process_item=set_name),
 
     # def check_loop(pk, visited_pks=None):
     #     if visited_pks is None:
@@ -139,6 +168,50 @@ ORDER BY DESC(?rank)
         taxon = taxon_by_pk[pk]
         taxon._parents.add(parent_taxon)
         # check_loop(pk)
+
+    print('loading parent data')
+    # TODO: load from csv if available
+    # with open('missing_parent_taxons.csv', 'w') as output:
+    #     output.write('pk\tvalue\n')
+    #     for t in tqdm([x for x in taxon_by_pk.values() if x.name is None]):
+    #         r = download_contents(f'{t.pk}', """
+    #         SELECT ?parenttaxon WHERE {
+    #           VALUES ?item { wd:%s }
+    #           ?item p:P171 ?p171stm .
+    #           ?p171stm ps:P171 ?parenttaxon;
+    #                    wikibase:rank ?rank .
+    #         }
+    #         ORDER BY DESC(?rank)
+    #         """ % t.pk)
+    #         parent_pk = wikidata_id_as_int(r.strip().split('\n')[-1])
+    #         parent_pk = fix_obsolete_pks.get(parent_pk, parent_pk)
+    #         parent_taxon = taxon_by_pk[parent_pk]
+    #         taxon = taxon_by_pk[pk]
+    #         taxon._parents.add(parent_taxon)
+    #         output.write(f'{t.pk}\t{parent_pk}\n')
+    #         # t.name = clean_name(r.strip().split('\n')[-1])
+    #         sleep(0.1)
+
+    def set_parent(pk, value):
+        print(pk, value)
+        parent_pk = wikidata_id_as_int(value)
+        parent_pk = fix_obsolete_pks.get(parent_pk, parent_pk)
+        parent_taxon = taxon_by_pk[parent_pk]
+        taxon = taxon_by_pk[pk]
+        taxon._parents.add(parent_taxon)
+
+    backload_missing_data(
+        filename='missing_parent_taxons.csv',
+        query="""
+            SELECT ?parenttaxon WHERE {
+              VALUES ?item { wd:Q%s }
+              ?item p:P171 ?p171stm .
+              ?p171stm ps:P171 ?parenttaxon;
+                       wikibase:rank ?rank .
+            }
+            ORDER BY DESC(?rank)
+            """,
+        process_item=set_parent),
 
     print('Set non-ambiguous parents')
     top_level = set()
@@ -205,6 +278,7 @@ ORDER BY DESC(?rank)
     get_count(biota, rank=0)
 
     print('remove non-biota trees')
+    # TODO: some trees found here were just incorrect leaves, lots of this should be fixable!
     non_biota_tree_roots = [t for t in taxon_by_pk.values() if t.pk != biota_pk and t.parent is None]
 
     def remove_tree(t):
@@ -213,7 +287,7 @@ ORDER BY DESC(?rank)
         del taxon_by_pk[t.pk]
 
     for t in non_biota_tree_roots:
-        print('\t', t)
+        print('\t', t, t.pk)
         remove_tree(t)
 
     print('...inserting %s clades' % len(taxon_by_pk))
@@ -223,6 +297,8 @@ ORDER BY DESC(?rank)
         print('inserting rank %s (%s items)' % (k, len(group)), end='', flush=True)
         Taxon.objects.bulk_create(group, batch_size=100)
         print(' .. took %s' % (datetime.now() - start))
+
+    # TODO: load images.csv
 
 
 def clean_name(name):
@@ -250,10 +326,14 @@ def download(select, filename):
 
 
 def download_contents(filename, select):
-    result = requests.get('https://query.wikidata.org/sparql?%s' % urlencode([('query', select)]), headers={'Accept': 'text/tab-separated-values'}).text
+    result = requests.get('https://query.wikidata.org/sparql?%s' % urlencode([('query', select)]), headers={'Accept': 'text/tab-separated-values', 'User-agent': 'relatedhow/0.0 (https://github.com/boxed/related_how; boxed@killingar.net) data extraction bot'}).text
     if '\tat ' in result:
-        print('Error with download of %s, got %sMB' % (filename, len(result) / (1024 * 10424)))
+        print('Error with download of %s (1), got %sMB' % (filename, len(result) / (1024 * 10424)), result[-500:])
         exit(1)
+    if '</html>' in result:
+        print('Error with download of %s (2), got %sMB' % (filename, len(result) / (1024 * 10424)), result[-500:])
+        exit(1)
+    sleep(0.1)
     return result
 
 
@@ -298,17 +378,18 @@ def import_and_process():
             """,
     )
 
-    download(
-        filename='labels.csv',
-        select="""
-            SELECT DISTINCT ?item ?itemLabel WHERE {
-              ?item wdt:P31 wd:Q16521.
-              ?item wdt:P225 ?taxonname.
-              FILTER isBLANK(?taxonname) .
-              SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE]". }
-            }
-            """,
-    )
+    # # well this doesn't seem to work anymore :(
+    # download(
+    #     filename='labels.csv',
+    #     select="""
+    #         SELECT DISTINCT ?item ?itemLabel WHERE {
+    #           ?item wdt:P31 wd:Q16521.
+    #           ?item wdt:P225 ?taxonname.
+    #           FILTER isBLANK(?taxonname) .
+    #           SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE]". }
+    #         }
+    #         """,
+    # )
 
     download(
         filename='images.csv',
