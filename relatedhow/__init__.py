@@ -27,9 +27,13 @@ def line_count(filename):
 def wikidata_id_as_int(s):
     prefix = '<http://www.wikidata.org/entity/Q'
     suffix = '>'
-    assert s.startswith(prefix), repr(s)
-    assert s.endswith(suffix), repr(s)
-    return int(s[len(prefix):-len(suffix)])
+    if s.startswith(prefix):
+        assert s.endswith(suffix), repr(s)
+        return int(s[len(prefix):-len(suffix)])
+    elif s.startswith('Q'):
+        return int(s[1:])
+    else:
+        assert False, f'Unsupported format for wikidata_as_int: "{s}"'
 
 
 def fix_text(s):
@@ -56,15 +60,23 @@ class TaxonsDict(defaultdict):
     def __missing__(self, key):
         from relatedhow.viewer.models import Taxon
         # t = Taxon(pk=key)
-        t = FakeTaxon(pk=key, name=None)
+        t = FakeTaxon(pk=key, name=None, parent=None, rank=None)
         t._children = set()
         t._parents = set()
         self[key] = t
         return t
 
 
-def import_wikidata():
+def create_taxon_from_struct(x):
     from relatedhow.viewer.models import Taxon
+    kw = {k: v for k, v in x.items() if not k.startswith('_')}
+    p = kw.pop('parent')
+    if p:
+        kw['parent_id'] = p.pk
+    return Taxon(**kw)
+
+
+def import_wikidata():
 
     # print('Clearing database')
     # from django.db import connection
@@ -72,17 +84,17 @@ def import_wikidata():
     # cursor.execute('TRUNCATE TABLE `viewer_taxon`')
 
     initial_taxons = [
-        Taxon(id=2382443, name='Biota', english_name='Life'),
-        Taxon(id=23012932, name='Ichnofossils'),
-        Taxon(id=24150684, name='Agmata'),
-        Taxon(id=5381701, name='Eohostimella'),
-        Taxon(id=23832652, name='Anucleobionta'),
-        Taxon(id=21078601, name='Yelovichnus'),
-        Taxon(id=35107213, name='Rhizopodea'),
-        Taxon(id=46987746, name='Pan-Angiospermae'),
-        Taxon(id=14868864, name='Enoplotrupes'),
-        Taxon(id=17290456, name='Erythrophyllum'),
-        Taxon(id=14868878, name='Chelotrupes'),
+        FakeTaxon(rank=None, parent=None, pk=2382443, name='Biota', english_name='Life'),
+        FakeTaxon(rank=None, parent=None, pk=23012932, name='Ichnofossils'),
+        FakeTaxon(rank=None, parent=None, pk=24150684, name='Agmata'),
+        FakeTaxon(rank=None, parent=None, pk=5381701, name='Eohostimella'),
+        FakeTaxon(rank=None, parent=None, pk=23832652, name='Anucleobionta'),
+        FakeTaxon(rank=None, parent=None, pk=21078601, name='Yelovichnus'),
+        FakeTaxon(rank=None, parent=None, pk=35107213, name='Rhizopodea'),
+        FakeTaxon(rank=None, parent=None, pk=46987746, name='Pan-Angiospermae'),
+        FakeTaxon(rank=None, parent=None, pk=14868864, name='Enoplotrupes'),
+        FakeTaxon(rank=None, parent=None, pk=17290456, name='Erythrophyllum'),
+        FakeTaxon(rank=None, parent=None, pk=14868878, name='Chelotrupes'),
     ]
 
     taxon_by_pk = TaxonsDict()
@@ -125,9 +137,12 @@ def import_wikidata():
                 output.write('pk\tvalue\n')
                 for t in tqdm([x for x in taxon_by_pk.values() if x.name is None]):
                     r = download_contents(f'{t.pk}', query % t.pk)
-                    value = r.strip().split('\n')[-1]
+                    lines = r.strip().split('\n')
+                    if len(lines) != 2:
+                        continue
+                    value = lines[-1]
                     process_item(t.pk, value)
-                    output.write(f'{t.pk}\t{value}\n')
+                    output.write(f'Q{t.pk}\t{value}\n')
                     output.flush()
 
     print('loading missing names')
@@ -193,7 +208,6 @@ def import_wikidata():
     #         sleep(0.1)
 
     def set_parent(pk, value):
-        print(pk, value)
         parent_pk = wikidata_id_as_int(value)
         parent_pk = fix_obsolete_pks.get(parent_pk, parent_pk)
         parent_taxon = taxon_by_pk[parent_pk]
@@ -287,12 +301,13 @@ def import_wikidata():
         del taxon_by_pk[t.pk]
 
     for t in non_biota_tree_roots:
-        print('\t', t, t.pk)
+        print('\t', t.name, t.pk)
         remove_tree(t)
 
     print('...inserting %s clades' % len(taxon_by_pk))
+    from relatedhow.viewer.models import Taxon
     for k, group in groupby(sorted(taxon_by_pk.values(), key=lambda x: x.rank or 0), key=lambda x: x.rank or 0):
-        group = list(group)
+        group = [create_taxon_from_struct(x) for x in group]
         start = datetime.now()
         print('inserting rank %s (%s items)' % (k, len(group)), end='', flush=True)
         Taxon.objects.bulk_create(group, batch_size=100)
