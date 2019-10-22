@@ -128,6 +128,9 @@ def import_wikidata():
         if name:
             taxon_by_pk[pk].name = name
 
+    for pk, v in read_csv('images.csv'):
+        taxon_by_pk[pk].image = v[1:-1]
+
     def backload_missing_data(filename, query, process_item):
         if exists(filename):
             for pk, v in read_csv(filename):

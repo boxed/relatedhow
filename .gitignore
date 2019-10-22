@@ -3,14 +3,9 @@
 *.pyc
 __pycache__
 venv/
-result.csv
-names.csv
 tree.gv
 tree.gv.svg
-labels.csv
-taxons.csv
-parent_taxons.csv
-synonyms.csv
+*.csv
 export/
 export_relevant/
 elm-stuff/
