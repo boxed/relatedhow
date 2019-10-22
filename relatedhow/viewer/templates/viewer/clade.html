@@ -14,6 +14,10 @@
         <h2>English name: {{ taxon.english_name }}</h2>
     {% endif %}
 
+    {% if taxon.image %}
+        <img src="{{ taxon.image }}" style="max-width: 100px">
+    {% endif %}
+
     {% if taxon.children.all %}
         <p></p>
 
