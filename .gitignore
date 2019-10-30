@@ -9,3 +9,5 @@ tree.gv.svg
 export/
 export_relevant/
 elm-stuff/
+taxon_data.json
+relatedhow.db

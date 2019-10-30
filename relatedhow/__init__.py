@@ -1,3 +1,5 @@
+import json
+import sys
 from collections import defaultdict
 from datetime import datetime
 from itertools import groupby
@@ -60,7 +62,7 @@ class TaxonsDict(defaultdict):
     def __missing__(self, key):
         from relatedhow.viewer.models import Taxon
         # t = Taxon(pk=key)
-        t = FakeTaxon(pk=key, name=None, parent=None, rank=None)
+        t = FakeTaxon(pk=key, name=None, parent=None, rank=None, english_name=None, image=None)
         t._children = set()
         t._parents = set()
         self[key] = t
@@ -111,124 +113,36 @@ def import_wikidata():
 
     pks_of_taxons_with_ambiguous_parents = set()
 
-    for pk, v in read_csv('names.csv'):
-        name = fix_text(v)
-        if name:
-            taxon_by_pk[pk].english_name = clean_name(name)
+    def q_id_to_pk(s):
+        return int(s[1:])  # [1:] is to drop the Q prefix
 
-    ## getting labels no longer work
-    # for pk, v in read_csv('labels.csv'):
-    #     name = fix_text(v)
-    #     if name:
-    #         taxon_by_pk[pk].english_name = clean_name(name)
+    def claims_values(c, k):
+        try:
+            return [x['mainsnak']['datavalue']['value'] for x in c.get(k, [])]
+        except KeyError:
+            return []
 
-    for pk, v in read_csv('taxons.csv'):
-        name = fix_text(v)
-        pk = fix_obsolete_pks.get(pk, pk)
-        if name:
-            taxon_by_pk[pk].name = name
-
-    for pk, v in read_csv('images.csv'):
-        taxon_by_pk[pk].image = v[1:-1]
-
-    def backload_missing_data(filename, query, process_item):
-        if exists(filename):
-            for pk, v in read_csv(filename):
-                process_item(pk, v)
-        else:
-            with open(filename, 'w') as output:
-                output.write('pk\tvalue\n')
-                for t in tqdm([x for x in taxon_by_pk.values() if x.name is None]):
-                    r = download_contents(f'{t.pk}', query % t.pk)
-                    lines = r.strip().split('\n')
-                    if len(lines) != 2:
-                        continue
-                    value = lines[-1]
-                    process_item(t.pk, value)
-                    output.write(f'Q{t.pk}\t{value}\n')
-                    output.flush()
-
-    print('loading missing names')
-
-    def set_name(pk, value):
-        taxon_by_pk[pk].name = clean_name(value)
-
-    backload_missing_data(
-        filename='missing_names.csv',
-        query="""
-            SELECT ?itemLabel WHERE {
-              VALUES ?item { wd:Q%s }
-              ?item p:P171 ?p171stm .
-              ?p171stm ps:P171 ?parenttaxon;
-                       wikibase:rank ?rank .
-              SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
-            }
-            ORDER BY DESC(?rank)
-            """,
-        process_item=set_name),
-
-    # def check_loop(pk, visited_pks=None):
-    #     if visited_pks is None:
-    #         visited_pks = []
-    #     if pk in visited_pks:
-    #         print('loop!', visited_pks, pk)
-    #         exit(1)
-    #     for p in taxon_by_pk[pk]._parents:
-    #         check_loop(p.pk, visited_pks=visited_pks)
-
-    for pk, v in read_csv('parent_taxons.csv'):
-        if '_:' in v:
-            continue
-        pk = fix_obsolete_pks.get(pk, pk)
-        parent_pk = wikidata_id_as_int(v)
-        parent_pk = fix_obsolete_pks.get(parent_pk, parent_pk)
-        parent_taxon = taxon_by_pk[parent_pk]
-        taxon = taxon_by_pk[pk]
-        taxon._parents.add(parent_taxon)
-        # check_loop(pk)
-
-    print('loading parent data')
-    # TODO: load from csv if available
-    # with open('missing_parent_taxons.csv', 'w') as output:
-    #     output.write('pk\tvalue\n')
-    #     for t in tqdm([x for x in taxon_by_pk.values() if x.name is None]):
-    #         r = download_contents(f'{t.pk}', """
-    #         SELECT ?parenttaxon WHERE {
-    #           VALUES ?item { wd:%s }
-    #           ?item p:P171 ?p171stm .
-    #           ?p171stm ps:P171 ?parenttaxon;
-    #                    wikibase:rank ?rank .
-    #         }
-    #         ORDER BY DESC(?rank)
-    #         """ % t.pk)
-    #         parent_pk = wikidata_id_as_int(r.strip().split('\n')[-1])
-    #         parent_pk = fix_obsolete_pks.get(parent_pk, parent_pk)
-    #         parent_taxon = taxon_by_pk[parent_pk]
-    #         taxon = taxon_by_pk[pk]
-    #         taxon._parents.add(parent_taxon)
-    #         output.write(f'{t.pk}\t{parent_pk}\n')
-    #         # t.name = clean_name(r.strip().split('\n')[-1])
-    #         sleep(0.1)
-
-    def set_parent(pk, value):
-        parent_pk = wikidata_id_as_int(value)
-        parent_pk = fix_obsolete_pks.get(parent_pk, parent_pk)
-        parent_taxon = taxon_by_pk[parent_pk]
-        taxon = taxon_by_pk[pk]
-        taxon._parents.add(parent_taxon)
-
-    backload_missing_data(
-        filename='missing_parent_taxons.csv',
-        query="""
-            SELECT ?parenttaxon WHERE {
-              VALUES ?item { wd:Q%s }
-              ?item p:P171 ?p171stm .
-              ?p171stm ps:P171 ?parenttaxon;
-                       wikibase:rank ?rank .
-            }
-            ORDER BY DESC(?rank)
-            """,
-        process_item=set_parent),
+    with open('taxon_data.json') as f:
+        for line in tqdm(f, total=2716398):
+            if line.endswith(',\n'):
+                line = line[:-2]
+            j = json.loads(line)
+            claims = j['claims']
+            taxon = taxon_by_pk[q_id_to_pk(j['id'])]
+            try:
+                taxon.name = j['aliases']['en'][0]['value']
+            except KeyError:
+                try:
+                    taxon.name = j['labels']['en']['value']
+                except KeyError:
+                    print('!', end='')
+                    continue
+            try:
+                taxon.english_name = j['sitelinks']['enwiki']['title']
+            except KeyError:
+                pass
+            taxon.image = claims_values(claims, 'P2716') or claims_values(claims, 'P18')
+            taxon._parents = {taxon_by_pk[x['numeric-id']] for x in claims_values(claims, 'P171')}
 
     print('Set non-ambiguous parents')
     top_level = set()
@@ -260,7 +174,7 @@ def import_wikidata():
                     t = t.parent
                 # handle cases where tree is not in biota
                 if result and result[-1].pk != biota_pk:
-                    print('\t%s is not related to biota' % orig.pk)
+                    # print('\t%s is not related to biota' % orig.pk)
                     return []
                 return result
 
@@ -295,7 +209,6 @@ def import_wikidata():
     get_count(biota, rank=0)
 
     print('remove non-biota trees')
-    # TODO: some trees found here were just incorrect leaves, lots of this should be fixable!
     non_biota_tree_roots = [t for t in taxon_by_pk.values() if t.pk != biota_pk and t.parent is None]
 
     def remove_tree(t):
@@ -304,7 +217,8 @@ def import_wikidata():
         del taxon_by_pk[t.pk]
 
     for t in non_biota_tree_roots:
-        print('\t', t.name, t.pk)
+        if t.name and not t.name.startswith('Category'):
+            print('\t', t.name, t.pk)
         remove_tree(t)
 
     print('...inserting %s clades' % len(taxon_by_pk))
@@ -356,68 +270,6 @@ def download_contents(filename, select):
 
 
 def import_and_process():
-    download(
-        filename='taxons.csv',
-        select="""
-            SELECT ?item ?taxonname WHERE {
-              ?item wdt:P225 ?taxonname.
-              FILTER (!isBLANK(?taxonname)).
-            }
-            """,
-    )
-
-    download(
-        filename='synonyms.csv',
-        select="""
-            SELECT ?item ?synonym WHERE {
-                  ?item wdt:P1420 ?synonym.
-                }
-            """
-    )
-
-    download(
-        filename='parent_taxons.csv',
-        select="""
-            SELECT ?item ?parenttaxon WHERE {
-              ?item p:P171 ?p171stm .
-              ?p171stm ps:P171 ?parenttaxon .
-            }
-            """
-    )
-
-    download(
-        filename='names.csv',
-        select="""
-            SELECT DISTINCT ?item ?label WHERE {
-              ?item wdt:P31 wd:Q16521.
-              ?item wdt:P1843 ?label. 
-              FILTER (langMatches( lang(?label), "EN" ) )
-            }
-            """,
-    )
-
-    # # well this doesn't seem to work anymore :(
-    # download(
-    #     filename='labels.csv',
-    #     select="""
-    #         SELECT DISTINCT ?item ?itemLabel WHERE {
-    #           ?item wdt:P31 wd:Q16521.
-    #           ?item wdt:P225 ?taxonname.
-    #           FILTER isBLANK(?taxonname) .
-    #           SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE]". }
-    #         }
-    #         """,
-    # )
-
-    download(
-        filename='images.csv',
-        select="""
-            SELECT DISTINCT ?item ?image WHERE {
-              ?item wdt:P31 wd:Q16521.
-              ?item wdt:P18 ?image.
-            }
-        """
-    )
 
     import_wikidata()
     # fast exit because we're using a lot of memory and cleaning that is silly
