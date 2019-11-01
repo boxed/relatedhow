@@ -1,0 +1,45 @@
+image: P18
+instance of: P31
+    taxon Q16521
+    
+taxon name: P225
+parent taxon: P171
+collage image: P2716
+!!!!  taxon name: P225 !!!!
+
+
+json[x]:
+    "id" -> Q...
+    "sitelinks": {"enwiki": {
+         "badges" : [
+            "Q17437796"
+         ],
+         "title" : "Fungus",
+         "site" : "enwiki"
+      }}
+    "claims"
+        "P...."
+        
+    "labels": {"en": {"value": "Fungi"}}
+    
+    
+    
+In [1]: c = open('fungi.json').read()                                                                                                        
+
+In [2]: import json                                                                                                                          
+
+In [3]: j = json.loads(c)                                                                                                                    
+
+In [4]: j['id']                                                                                                                              
+Out[4]: 'Q764'
+
+In [5]: j['sitelinks']['enwiki']['title']                                                                                                    
+Out[5]: 'Fungus'
+
+
+In [9]: parents = j['claims']['P171']
+In [12]: [x['mainsnak']['datavalue']['value']['id'] for x in parents]
+Out[12]: ['Q19088', 'Q2943473']
+
+
+total taxons: 2716398
