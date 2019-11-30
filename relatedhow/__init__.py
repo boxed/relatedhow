@@ -192,6 +192,17 @@ def import_wikidata():
     while fix_ambiguous_parents():
         continue
 
+    print('write parentless taxons')
+    taxons_with_no_parent = [taxon for taxon in taxon_by_pk.values() if not taxon._parents]
+    with open('no_parent_taxons.txt', 'w') as f:
+        f.write('\n'.join(str(x.pk) for x in taxons_with_no_parent))
+
+    print('write loops')
+    if pks_of_taxons_with_ambiguous_parents:
+        loop_roots = [pk for pk in pks_of_taxons_with_ambiguous_parents if all(p.pk > pk for p in taxon_by_pk[pk]._parents)]
+        with open('loop_roots.txt', 'w') as f:
+            f.write('\n'.join(str(x) for x in loop_roots))
+
     print('set children')
     for taxon in tqdm(taxon_by_pk.values()):
         if taxon.parent:
