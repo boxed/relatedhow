@@ -1,5 +1,4 @@
 import json
-import sys
 from collections import defaultdict
 from datetime import datetime
 from itertools import groupby
@@ -13,7 +12,7 @@ from tqdm import tqdm
 
 from subprocess import check_output
 
-from tri.struct import Struct
+from tri_struct import Struct
 
 biota_pk = 2382443
 

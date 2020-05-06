@@ -4,3 +4,4 @@ mysqlclient
 graphviz
 tqdm
 gunicorn
+tri.struct
