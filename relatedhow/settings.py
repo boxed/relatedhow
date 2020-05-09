@@ -30,6 +30,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     'relatedhow.herokuapp.com',
+    'relatedhow.kodare.com',
+    'relatedhow.kodare.net',
     '127.0.0.1',
     'localhost',
 ]
