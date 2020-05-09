@@ -87,8 +87,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'relatedhow',
-        'USER': os.environ['DOKKU_MYSQL_MYSQL_ENV_MYSQL_USER'],
-        'PASSWORD': os.environ['DOKKU_MYSQL_MYSQL_ENV_MYSQL_PASSWORD'],
+        'USER': 'root',
+        'PASSWORD': os.environ['DOKKU_MYSQL_MYSQL_ENV_MYSQL_ROOT_PASSWORD'],
         'HOST': os.environ['DOKKU_MYSQL_MYSQL_PORT_3306_TCP_ADDR'],
     }
 }
