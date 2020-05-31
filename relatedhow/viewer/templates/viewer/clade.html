@@ -7,15 +7,15 @@
     {% endif %}
 
     {% for t in taxon.get_all_parents reversed %}
-        <a href="{{ t.get_absolute_url }}">{{ t.name }}</a>{% if t.english_name %} ({{ t.english_name }}){% endif %}<br>
+        <a href="{{ t.get_absolute_url }}">{{ t }}</a>{% if t.alt_name %} ({{ t.alt_name }}){% endif %}<br>
     {% endfor %}
-    <h1>{{ taxon.name }} (<a href="http://www.wikidata.org/entity/Q{{ taxon.pk }}">{{ taxon.pk }}</a>)</h1>
+    <h1>{{ taxon }} (<a href="http://www.wikidata.org/entity/Q{{ taxon.pk }}">{{ taxon.pk }}</a>)</h1>
     {% if taxon.english_name %}
         <h2>English name: {{ taxon.english_name }}</h2>
     {% endif %}
 
     {% if taxon.image %}
-        <img src="{{ taxon.image }}" style="max-width: 100px">
+        <img src="{{ taxon.image_url }}" style="max-width: 400px">
     {% endif %}
 
     {% if taxon.children.all %}
@@ -33,7 +33,7 @@
 
         <p style="column-width: 300px;">
             {% for t in taxon.children.all %}
-                <a href="{{ t.get_absolute_url }}">{{ t.name }}</a><br>
+                <a href="{{ t.get_absolute_url }}">{{ t }}</a><br>
                 {% if t.english_name %}
                     {{ t.english_name }}<br>
                 {% endif %}

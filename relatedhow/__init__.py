@@ -245,6 +245,7 @@ def fix_ambiguous_parents(pks_of_taxons_with_ambiguous_parents, taxon_by_pk):
     print('\t%s fixed, %s left' % (count, len(pks_of_taxons_with_ambiguous_parents)))
     return count
 
+
 def set_non_ambigous_parents(pks_of_taxons_with_ambiguous_parents, taxon_by_pk):
     print('Set non-ambiguous parents')
     top_level = set()
@@ -324,6 +325,14 @@ def download_contents(filename, select):
         exit(1)
     sleep(0.1)
     return result
+
+
+# def translate_images_to_urls():
+#     from relatedhow.viewer.models import Taxon
+#     taxons = list(Taxon.objects.exclude(image__startswith='http').exclude(image=None))
+#     for t in tqdm(taxons):
+#         t.image = json.loads(requests.get(f'https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2&prop=imageinfo&iiprop=url&iiurlwidth=320&titles=File:{t.image}').text)['query']['pages'][0]['imageinfo'][0]['thumburl']
+#         t.save()
 
 
 def import_and_process():

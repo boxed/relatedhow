@@ -18,7 +18,7 @@
                         {% for t in taxons %}
                             <tr>
                                 <td><input type="radio" name="disambiguate_{{ name }}" value="{{ t }}"></td>
-                                <td><a href="{{ t.get_absolute_url }}">{{ t.name }}</a></td>
+                                <td><a href="{{ t.get_absolute_url }}">{{ t }}</a></td>
                                 <td>{{ t.english_name }}</td>
                             </tr>
                         {% endfor %}

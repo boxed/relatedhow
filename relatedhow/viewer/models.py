@@ -41,10 +41,32 @@ class Taxon(models.Model):
         return result
 
     def __repr__(self):
-        return self.name
+        return f'<{self.pk}: {self.name}>'
+
+    def names(self):
+        return [
+            x
+            for x in
+            [self.name, self.english_name, self.alias, self.wikipedia_title]
+            if x
+        ]
 
     def __str__(self):
-        return f'{self.name or self.english_name}'
+        return f'{self.names()[0]}'.capitalize()
+
+    def alt_name(self):
+        name = str(self).lower()
+        try:
+            return [x for x in self.names() if x.lower() != name][0].capitalize()
+        except IndexError:
+            return None
+
+    def image_url(self):
+        from hashlib import md5
+        from urllib.parse import quote
+        x = self.image
+        hash = md5(x.replace(' ', '_').encode()).hexdigest()
+        return f'https://upload.wikimedia.org/wikipedia/commons/{hash[0]}/{hash[:2]}/{quote(x.replace(" ", "_"))}'
 
     def placeholder_str(self):
         return f'#####{self.id}%%%%%'
