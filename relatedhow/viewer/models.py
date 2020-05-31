@@ -16,7 +16,7 @@ class Taxon(models.Model):
     rank = models.IntegerField(null=True)
     number_of_direct_children = models.IntegerField(null=True)
     number_of_direct_and_indirect_children = models.IntegerField(null=True)
-    image = models.URLField(default=None, null=True)
+    image = models.URLField(default=None, null=True, max_length=1024)
     wikipedia_title = models.CharField(max_length=255, null=True)
 
     def update_rank_of_children(self):
