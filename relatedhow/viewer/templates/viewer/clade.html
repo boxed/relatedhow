@@ -7,7 +7,7 @@
     {% endif %}
 
     {% for t in taxon.get_all_parents reversed %}
-        <a href="{{ t.get_absolute_url }}">{{ t.name }}{% if t.english_name %} ({{ t.english_name }}){% endif %}</a><br>
+        <a href="{{ t.get_absolute_url }}">{{ t.name }}</a>{% if t.english_name %} ({{ t.english_name }}){% endif %}<br>
     {% endfor %}
     <h1>{{ taxon.name }} (<a href="http://www.wikidata.org/entity/Q{{ taxon.pk }}">{{ taxon.pk }}</a>)</h1>
     {% if taxon.english_name %}

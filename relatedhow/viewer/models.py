@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
 from functools import total_ordering
@@ -12,11 +11,13 @@ from django.db.models import Q
 class Taxon(models.Model):
     name = models.CharField(max_length=255, db_index=True, null=True)
     english_name = models.CharField(max_length=255, db_index=True, null=True)
+    alias = models.CharField(max_length=255, db_index=True, null=True)
     parent = models.ForeignKey('self', null=True, on_delete=models.PROTECT, related_name='children')
     rank = models.IntegerField(null=True)
     number_of_direct_children = models.IntegerField(null=True)
     number_of_direct_and_indirect_children = models.IntegerField(null=True)
     image = models.URLField(default=None, null=True)
+    wikipedia_title = models.CharField(max_length=255, null=True)
 
     def update_rank_of_children(self):
         for c in self.children.all():

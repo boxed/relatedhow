@@ -61,7 +61,7 @@ class TaxonsDict(defaultdict):
     def __missing__(self, key):
         from relatedhow.viewer.models import Taxon
         # t = Taxon(pk=key)
-        t = FakeTaxon(pk=key, name=None, parent=None, rank=None, english_name=None, image=None)
+        t = FakeTaxon(pk=key, name=None, parent=None, rank=None, english_name=None, image=None, alias=None, wikipedia_title=None)
         t._children = set()
         t._parents = set()
         self[key] = t
@@ -79,10 +79,10 @@ def create_taxon_from_struct(x):
 
 def import_wikidata():
 
-    # print('Clearing database')
-    # from django.db import connection
-    # cursor = connection.cursor()
-    # cursor.execute('TRUNCATE TABLE `viewer_taxon`')
+    print('Clearing database')
+    from django.db import connection
+    cursor = connection.cursor()
+    cursor.execute('TRUNCATE TABLE `viewer_taxon`')
 
     initial_taxons = [
         FakeTaxon(rank=None, parent=None, pk=2382443, name='Biota', english_name='Life'),
@@ -121,6 +121,7 @@ def import_wikidata():
         except KeyError:
             return []
 
+    print('load taxon_data.json')
     with open('taxon_data.json') as f:
         for line in tqdm(f, total=2716398):
             if line.endswith(',\n'):
@@ -129,17 +130,18 @@ def import_wikidata():
             claims = j['claims']
             taxon = taxon_by_pk[q_id_to_pk(j['id'])]
             try:
-                taxon.name = j['aliases']['en'][0]['value']
-            except KeyError:
-                try:
-                    taxon.name = j['labels']['en']['value']
-                except KeyError:
-                    print('!', end='')
-                    continue
-            try:
-                taxon.english_name = j['sitelinks']['enwiki']['title']
+                taxon.alias = j['aliases']['en'][0]['value']
             except KeyError:
                 pass
+            try:
+                taxon.name = j['labels']['en']['value']
+            except KeyError:
+                pass
+            try:
+                taxon.wikipedia_title = j['sitelinks']['enwiki']['title']
+            except KeyError:
+                pass
+            taxon.name = taxon.name or taxon.alias or taxon.english_name or taxon.wikipedia_title
             taxon.image = claims_values(claims, 'P2716') or claims_values(claims, 'P18')
             taxon._parents = {taxon_by_pk[x['numeric-id']] for x in claims_values(claims, 'P171')}
 
@@ -191,6 +193,11 @@ def import_wikidata():
     while fix_ambiguous_parents():
         continue
 
+    print('break trivial loops')
+    for taxon in tqdm(taxon_by_pk.values()):
+        if taxon.parent and taxon.parent.pk and taxon.parent.parent.pk == taxon.id:
+            taxon.parent = None
+
     print('write parentless taxons')
     taxons_with_no_parent = [taxon for taxon in taxon_by_pk.values() if not taxon._parents]
     with open('no_parent_taxons.txt', 'w') as f:
@@ -234,11 +241,14 @@ def import_wikidata():
     print('...inserting %s clades' % len(taxon_by_pk))
     from relatedhow.viewer.models import Taxon
     for k, group in groupby(sorted(taxon_by_pk.values(), key=lambda x: x.rank or 0), key=lambda x: x.rank or 0):
-        group = [create_taxon_from_struct(x) for x in group]
-        start = datetime.now()
-        print('inserting rank %s (%s items)' % (k, len(group)), end='', flush=True)
-        Taxon.objects.bulk_create(group, batch_size=100)
-        print(' .. took %s' % (datetime.now() - start))
+        try:
+            group = [create_taxon_from_struct(x) for x in group]
+            start = datetime.now()
+            print('inserting rank %s (%s items)' % (k, len(group)), end='', flush=True)
+            Taxon.objects.bulk_create(group, batch_size=100)
+            print(' .. took %s' % (datetime.now() - start))
+        except:
+            import ipdb; ipdb.set_trace()
 
     # TODO: load images.csv
 
