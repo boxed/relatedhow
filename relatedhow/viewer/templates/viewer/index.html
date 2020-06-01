@@ -3,14 +3,36 @@
 {% block contents %}
     Examples:
     <ul>
-        <li>
-            <a href="/tree/178228,43576,15978631,36611/">Tree: goat, wild cat, human, gorilla</a>
-        </li>
-        <li>
-            <a href="/clade/20980826/">Domestic cat</a>
-        </li>
-        <li>
-            <a href="/clade/15978631/">Human</a>
-        </li>
+        <li>Tree for <a href="/tree/178228,43576,15978631,36611/">Goat, Wild cat, Human and Gorilla</a></li>
+        <li>Single species: <a href="/clade/15978631/">Human</a></li>
+        <li>Single species: <a href="/clade/20980826/">Domestic cat</a></li>
     </ul>
+
+    <p>
+        Browse by starting at <a href="/clade/2382443">LUCA</a> or <a href="/clade/808/">Virus</a>.
+    </p>
+
+    <p>Related how? is a site to help you understand how species are related.</p>
+
+
+<h2>What is cladistics and what is a clade?</h2>
+
+    <p>Cladistics is the modern way to classify organisms. It is named after the word clade which is greek for "branch". A clade is a population (or species) and all its descendents. This single concept replaces Family, Genus, Species, Domain, etc.</p>
+
+    <p>You might have been taught the Linnéan system in school. It still has its uses but it became clear as we learned more through fossils, and later DNA data, that a new approach was needed (this was started already in 1901!). Species split into new species all the time and to describe this you will need to draw a tree. The Linnéan system has just a few levels while the true relationships between species form trees that will have innumerable branches.</p>
+
+    <p>The cladistic view also leads to the definition that we <i>are</i> every ancestral clade. Humans are mammals because we are descendent of a species "mammal". By the same logic we are also monkeys, apes, tetrapods, lobe-finned fishes, vertebrates, eukaryotes and archea. This is probably very different from what you were taught in school! When I was a child we were told many times that "whales are mammals, not fish". But looking at this cladistic definition we see that this is wrong. Whales are mammals, which are fish.</p>
+
+    <h2>The data</h2>
+
+    <p>This database most likely contains many errors, but should be pretty good with the big picture. It is based on Wikidata with some modifications to make the base tree a little more sane. Wikidata isn't really meant to be used to make a scientifically rigorous cladistic tree, but it's the best data source I have found that I can use.</p>
+
+    There are two trees in this database: Virus and <a href="https://en.wikipedia.org/wiki/Last_universal_common_ancestor">LUCA (Last Universal Ancestor)</a>:
+
+    <ul>
+    <li>Viruses are a bit special in that they have most likely arisen several times and so aren't actually a true clade. This is an error in the database that is a consequence of the fact that the evolutionary past of viruses hasn't been figured out yet.</li>
+    <li>LUCA is the common ancestor of humans and bacteria. It is almost certain that this is not the first life on Earth but just the youngest population that still have surviving descendants.</li>
+    </ul>
+
+
 {% endblock %}

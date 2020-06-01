@@ -52,7 +52,11 @@ class Taxon(models.Model):
         ]
 
     def __str__(self):
-        return f'{self.names()[0]}'.capitalize()
+        names = self.names()
+        if names:
+            return f'{self.names()[0]}'.capitalize()
+        else:
+            return '<no label>'
 
     def alt_name(self):
         name = str(self).lower()

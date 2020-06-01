@@ -110,10 +110,6 @@ def import_wikidata():
 
 
 def init(taxon_by_pk):
-    print('Clearing database')
-    from django.db import connection
-    cursor = connection.cursor()
-    cursor.execute('TRUNCATE TABLE `viewer_taxon`')
     initial_taxons = [
         FakeTaxon(rank=None, parent=None, pk=2382443, name='Biota', english_name='Life'),
         FakeTaxon(rank=None, parent=None, pk=23012932, name='Ichnofossils'),
@@ -141,6 +137,11 @@ def read_synonyms(fix_obsolete_pks):
 
 
 def store_to_db(taxon_by_pk):
+    print('Clearing database')
+    from django.db import connection
+    cursor = connection.cursor()
+    cursor.execute('TRUNCATE TABLE `viewer_taxon`')
+
     print('...inserting %s clades' % len(taxon_by_pk))
     from relatedhow.viewer.models import Taxon
     for k, group in groupby(sorted(taxon_by_pk.values(), key=lambda x: x.rank or 0), key=lambda x: x.rank or 0):
@@ -325,6 +326,39 @@ def download_contents(filename, select):
         exit(1)
     sleep(0.1)
     return result
+
+
+def fix_base_of_tree():
+    from relatedhow.viewer.models import Taxon
+    luca = Taxon.objects.get(pk=2382443)
+
+    if luca.name == 'LUCA':
+        print('Already fixed base of tree')
+        return
+
+    print('Fixing base of tree')
+    luca.english_name = 'Cellular life'
+    luca.name = 'LUCA'
+    luca.save()
+
+    virus = Taxon.objects.get(pk=808)
+    virus.parent.number_of_direct_children -= 1
+    virus.parent.number_of_direct_and_indirect_children -= virus.number_of_direct_and_indirect_children + 1
+    virus.parent.save()
+    virus.parent = None
+    virus.save()
+
+    archea = Taxon.objects.get(pk=10872)
+
+    eukaryotes = Taxon.objects.get(pk=19088)
+    eukaryotes.parent.number_of_direct_children -= 1
+    eukaryotes.parent.number_of_direct_and_indirect_children -= eukaryotes.number_of_direct_and_indirect_children + 1
+    eukaryotes.parent = archea
+    eukaryotes.save()
+
+    archea.number_of_direct_children += 1
+    archea.number_of_direct_and_indirect_children += eukaryotes.number_of_direct_and_indirect_children + 1
+    archea.save()
 
 
 # def translate_images_to_urls():
