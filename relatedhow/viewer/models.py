@@ -7,6 +7,10 @@ from django.db import models
 from django.db.models import Q
 
 
+def capitalize(s):
+    return s[0].upper() + s[1:]
+
+
 @total_ordering
 class Taxon(models.Model):
     name = models.CharField(max_length=255, db_index=True, null=True)
@@ -54,14 +58,14 @@ class Taxon(models.Model):
     def __str__(self):
         names = self.names()
         if names:
-            return f'{self.names()[0]}'.capitalize()
+            return capitalize(self.names()[0])
         else:
             return '<no label>'
 
     def alt_name(self):
         name = str(self).lower()
         try:
-            return [x for x in self.names() if x.lower() != name][0].capitalize()
+            return capitalize([x for x in self.names() if x.lower() != name][0])
         except IndexError:
             return None
 
