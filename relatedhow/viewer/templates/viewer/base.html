@@ -39,13 +39,15 @@
         </style>
 
         {# Bootstrap #}
-        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
-
-        <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/kognise/water.css@latest/dist/dark.min.css">
     </head>
 
     <body>
-        <h1><a href="/">Related how?</a></h1>
+        <h1 style="margin-bottom: 0"><a href="/">Related how?</a></h1>
+        <footer style="color:darkgray; margin-bottom: 20px; font-size: 80%">
+            find out how species are related
+        </footer>
+
 
 
         <form action="/" method="post"> {% csrf_token %}
