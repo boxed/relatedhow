@@ -21,7 +21,7 @@ class Taxon(models.Model):
     number_of_direct_children = models.IntegerField(null=True)
     number_of_direct_and_indirect_children = models.IntegerField(null=True)
     image = models.URLField(default=None, null=True, max_length=1024)
-    wikipedia_title = models.CharField(max_length=255, null=True)
+    wikipedia_title = models.CharField(max_length=255, null=True, db_index=True)
 
     def update_rank_of_children(self):
         for c in self.children.all():
@@ -100,6 +100,12 @@ def find_matching_taxons(s):
     result = list(Taxon.objects.filter(name__iexact=s))
     if not result:
         result = list(Taxon.objects.filter(english_name__iexact=s))
+
+    if not result:
+        result = list(Taxon.objects.filter(alias__iexact=s))
+
+    if not result:
+        result = list(Taxon.objects.filter(wikipedia_title__iexact=s))
 
     if not result:
         result = list(Taxon.objects.filter(english_name__iexact=f'domesticated {s}'))
