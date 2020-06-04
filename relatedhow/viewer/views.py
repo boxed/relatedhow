@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import os
 import re
+from uuid import uuid1
 
 from django.shortcuts import render, redirect
 from django.utils.safestring import mark_safe
@@ -67,11 +65,12 @@ def tree(request, pks):
         for a, b in zip(tree[:-1], tree[1:]):
             edges.add((a.placeholder_str(), b.placeholder_str()))
 
-    # TODO: filename! and write to temp dir
     g = Digraph('tree', format='svg')
     g.edges(edges)
-    path = g.render(filename='/tmp/graph', cleanup=True)
-    svg = open(path).read()
+    uuid = uuid1()
+    path = g.render(filename=f'/tmp/graph/{uuid}', cleanup=True)
+    with open(path) as f:
+        svg = f.read()
     os.remove(path)
 
     def replacement(matchobj):
@@ -79,6 +78,7 @@ def tree(request, pks):
         return taxon_by_pk[id].link_str()
 
     svg = re.sub('#####(\d+)%%%%%', replacement, svg)
+    svg = svg.replace('fill="#ffffff"', 'fill="#202b38"').replace('stroke="#000000"', 'stroke="#dbdbdb"')
 
     return render(
         request=request,
