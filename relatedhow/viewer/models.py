@@ -70,7 +70,7 @@ class Taxon(models.Model):
             return None
 
     def image_url(self):
-        if self.pk == 15978631:
+        if self.pk in (15978631, 3238275):
             return 'https://upload.wikimedia.org/wikipedia/commons/6/68/Akha_cropped_hires.JPG'
         from hashlib import md5
         from urllib.parse import quote
