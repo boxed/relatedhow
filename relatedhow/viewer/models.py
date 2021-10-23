@@ -117,6 +117,6 @@ def find_matching_taxons(s):
         result = list(Taxon.objects.filter(english_name__iexact=f'wild {s}'))
 
     if not result:
-        result = list(Taxon.objects.filter(Q(english_name__istartswith=s) | Q(english_name__iendswith=s)))
+        result = list(Taxon.objects.filter(Q(english_name__icontains=s) | Q(name__icontains=s) | Q(alias__icontains=s)))
 
-    return result
+    return result[:100]

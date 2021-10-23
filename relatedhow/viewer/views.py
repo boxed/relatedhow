@@ -78,7 +78,7 @@ def tree(request, pks):
         return taxon_by_pk[id].link_str()
 
     svg = re.sub('#####(\d+)%%%%%', replacement, svg)
-    svg = svg.replace('fill="#ffffff"', 'fill="#202b38"').replace('stroke="#000000"', 'stroke="#dbdbdb"')
+    svg = svg.replace('fill="#ffffff"', 'fill="#202b38"').replace('stroke="#000000"', 'stroke="#dbdbdb"').replace('fill="white"', 'fill="transparent"').replace('stroke="black"', 'stroke="#dbdbdb"')
 
     return render(
         request=request,

@@ -11,3 +11,4 @@ export_relevant/
 elm-stuff/
 taxon_data.json
 relatedhow.db
+relatedhow/settings_local.py
