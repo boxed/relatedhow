@@ -83,13 +83,20 @@ WSGI_APPLICATION = 'relatedhow.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
+DOKKU_APP_NAME = 'relatedhow'
+
+dokku_db_conf = {
+    'PORT': os.environ[f'DOKKU_POSTGRES_{DOKKU_APP_NAME}_PORT_5432_TCP_PORT'],
+    'HOST': os.environ[f'DOKKU_POSTGRES_{DOKKU_APP_NAME}_PORT_5432_TCP_ADDR'],
+    'USER': 'postgres',
+    'PASSWORD': os.environ[f'DOKKU_POSTGRES_{DOKKU_APP_NAME}_ENV_POSTGRES_PASSWORD'],
+    'NAME': DOKKU_APP_NAME.lower(),
+}
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'relatedhow',
-        'USER': os.environ.get('DOKKU_MYSQL_MYSQL_ENV_MYSQL_USER', 'root'),
-        'PASSWORD': os.environ.get('DOKKU_MYSQL_MYSQL_ENV_MYSQL_PASSWORD', ''),
-        'HOST': os.environ.get('DOKKU_MYSQL_MYSQL_PORT_3306_TCP_ADDR', 'localhost'),
+        'ENGINE': 'django.db.backends.postgresql',
+        **dokku_db_conf
     }
 }
 
