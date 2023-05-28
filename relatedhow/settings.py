@@ -85,6 +85,10 @@ WSGI_APPLICATION = 'relatedhow.wsgi.application'
 
 DOKKU_APP_NAME = 'relatedhow'
 
+import os
+for k, v in os.environ.items():
+    print(k, v)
+
 dokku_db_conf = {
     'PORT': os.environ[f'DOKKU_POSTGRES_{DOKKU_APP_NAME}_PORT_5432_TCP_PORT'],
     'HOST': os.environ[f'DOKKU_POSTGRES_{DOKKU_APP_NAME}_PORT_5432_TCP_ADDR'],
