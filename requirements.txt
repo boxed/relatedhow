@@ -1,6 +1,7 @@
 django
 requests
-mysql-connector-python
+#mysql-connector-python
+mysqlclient
 graphviz
 tqdm
 gunicorn
