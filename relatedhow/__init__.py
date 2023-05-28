@@ -264,22 +264,28 @@ def set_non_ambigous_parents(pks_of_taxons_with_ambiguous_parents, taxon_by_pk):
 def load_taxon_data(taxon_by_pk):
     print('load taxon_data.json')
     with open('taxon_data.json') as f:
-        for line in tqdm(f, total=2716398):
+        for line in tqdm(f, total=3490962):
             if line.endswith(',\n'):
                 line = line[:-2]
             j = json.loads(line)
             claims = j['claims']
             taxon = taxon_by_pk[q_id_to_pk(j['id'])]
             try:
-                taxon.alias = j['aliases']['en'][0]['value']
+                taxon.alias = j['aliases']['en'][0]['value'].lower()
             except KeyError:
                 pass
             try:
-                taxon.name = j['labels']['en']['value']
+                taxon.name = j['labels']['en']['value'].lower()
             except KeyError:
                 pass
             try:
-                taxon.wikipedia_title = j['sitelinks']['enwiki']['title']
+                taxon.english_name = {x['language']: x['text'] for x in claims_values(claims, 'P1843')}['en'].lower()
+                # print(j['id'], taxon.name, taxon.english_name)
+            except KeyError:
+                pass
+
+            try:
+                taxon.wikipedia_title = j['sitelinks']['enwiki']['title'].lower()
             except KeyError:
                 pass
             taxon.name = taxon.name or taxon.alias or taxon.english_name or taxon.wikipedia_title

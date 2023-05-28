@@ -93,30 +93,28 @@ class Taxon(models.Model):
 
 
 def find_matching_taxons(s):
+    s = s.lower()
     m = re.match(r'.* \((?P<pk>\d+)\)', s)
     if m:
         return list(Taxon.objects.filter(pk=m.groupdict()['pk']))
 
-    result = list(Taxon.objects.filter(name__iexact=s))
+    result = list(Taxon.objects.filter(name=s))
     if not result:
-        result = list(Taxon.objects.filter(english_name__iexact=s))
+        result = list(Taxon.objects.filter(english_name=s))
 
     if not result:
-        result = list(Taxon.objects.filter(alias__iexact=s))
+        result = list(Taxon.objects.filter(alias=s))
 
     if not result:
-        result = list(Taxon.objects.filter(wikipedia_title__iexact=s))
+        result = list(Taxon.objects.filter(wikipedia_title=s))
 
     if not result:
-        result = list(Taxon.objects.filter(english_name__iexact=f'domesticated {s}'))
+        result = list(Taxon.objects.filter(english_name=f'domesticated {s}'))
 
     if not result:
-        result = list(Taxon.objects.filter(english_name__iexact=f'domestic {s}'))
+        result = list(Taxon.objects.filter(english_name=f'domestic {s}'))
 
     if not result:
-        result = list(Taxon.objects.filter(english_name__iexact=f'wild {s}'))
-
-    if not result:
-        result = list(Taxon.objects.filter(Q(english_name__icontains=s) | Q(name__icontains=s) | Q(alias__icontains=s)))
+        result = list(Taxon.objects.filter(english_name=f'wild {s}'))
 
     return result[:100]
