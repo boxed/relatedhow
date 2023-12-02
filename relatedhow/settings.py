@@ -83,23 +83,12 @@ WSGI_APPLICATION = 'relatedhow.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
-DOKKU_APP_NAME = 'relatedhow'.upper()
-
-dokku_db_conf = {
-    'PORT': os.environ[f'DOKKU_POSTGRES_{DOKKU_APP_NAME}_PORT_5432_TCP_PORT'],
-    'HOST': os.environ[f'DOKKU_POSTGRES_{DOKKU_APP_NAME}_PORT_5432_TCP_ADDR'],
-    'USER': 'postgres',
-    'PASSWORD': os.environ[f'DOKKU_POSTGRES_{DOKKU_APP_NAME}_ENV_POSTGRES_PASSWORD'],
-    'NAME': DOKKU_APP_NAME.lower(),
-}
-
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        **dokku_db_conf
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': 'relatedhow.db',
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/1.11/ref/settings/#auth-password-validators

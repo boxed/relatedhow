@@ -1,8 +1,7 @@
+import re
 from functools import total_ordering
 
-import re
 from django.db import models
-from django.db.models import Q
 
 
 def capitalize(s):

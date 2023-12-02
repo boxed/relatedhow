@@ -139,8 +139,8 @@ def read_synonyms(fix_obsolete_pks):
 def store_to_db(taxon_by_pk):
     print('Clearing database')
     from django.db import connection
-    cursor = connection.cursor()
-    cursor.execute('TRUNCATE TABLE `viewer_taxon`')
+    # cursor = connection.cursor()
+    # cursor.execute('TRUNCATE TABLE `viewer_taxon`')
 
     print('...inserting %s clades' % len(taxon_by_pk))
     from relatedhow.viewer.models import Taxon
