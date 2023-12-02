@@ -19,6 +19,6 @@ clean-docs:
 deploy:
 	git add relatedhow.db -f
 	git commit -m "deploy"
-	git push dokku
+	git push dokku --force
 	git reset --soft HEAD^
 	git reset relatedhow.db
