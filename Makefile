@@ -17,7 +17,7 @@ clean-docs:
 	rm -f docs/tri*.rst
 
 deploy:
-	git add relatedhow.db
+	git add relatedhow.db -f
 	git commit -m "deploy"
 	git push dokku
 	git reset --soft HEAD^
